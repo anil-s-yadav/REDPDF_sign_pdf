@@ -7,9 +7,12 @@ import 'package:sign_pdf_redpdf/providers/signature_provider.dart';
 import 'package:sign_pdf_redpdf/models/pdf_document_model.dart';
 import 'package:sign_pdf_redpdf/models/signature_model.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../l10n/app_localizations.dart';
 
 class FilesScreen extends StatefulWidget {
-  const FilesScreen({super.key});
+  final int initialTabIndex;
+  const FilesScreen({super.key, this.initialTabIndex = 0});
 
   @override
   State<FilesScreen> createState() => _FilesScreenState();
@@ -22,20 +25,31 @@ class _FilesScreenState extends State<FilesScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Clear History"),
-        content: const Text("Are you sure you want to delete all signed PDFs and signatures? This action cannot be undone."),
+        title: Text(AppLocalizations.of(context)!.translate('clear_history')),
+        content: Text(
+          AppLocalizations.of(context)!.translate('clear_history_msg'),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel"),
+            child: Text(AppLocalizations.of(context)!.translate('cancel')),
           ),
           TextButton(
             onPressed: () {
-              Provider.of<PdfProvider>(context, listen: false).clearAllSignedDocuments();
-              Provider.of<SignatureProvider>(context, listen: false).clearAllSignatures();
+              Provider.of<PdfProvider>(
+                context,
+                listen: false,
+              ).clearAllSignedDocuments();
+              Provider.of<SignatureProvider>(
+                context,
+                listen: false,
+              ).clearAllSignatures();
               Navigator.pop(ctx);
             },
-            child: const Text("Delete All", style: TextStyle(color: Colors.red)),
+            child: Text(
+              AppLocalizations.of(context)!.translate('delete_all'),
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -51,6 +65,7 @@ class _FilesScreenState extends State<FilesScreen> {
       backgroundColor: pdfColor.bg,
       body: DefaultTabController(
         length: 2,
+        initialIndex: widget.initialTabIndex,
         child: SafeArea(
           child: Column(
             children: [
@@ -62,9 +77,9 @@ class _FilesScreenState extends State<FilesScreen> {
                 unselectedLabelColor: Colors.grey,
                 indicatorColor: pdfColor.primary,
                 dividerColor: Colors.transparent,
-                tabs: const [
-                  Tab(text: "Signed Documents"),
-                  Tab(text: "My Signatures"),
+                tabs: [
+                  Tab(text: AppLocalizations.of(context)!.translate('signed_documents')),
+                  Tab(text: AppLocalizations.of(context)!.translate('my_signatures')),
                 ],
               ),
               const SizedBox(height: 10),
@@ -89,9 +104,9 @@ class _FilesScreenState extends State<FilesScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            "Files",
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+          Text(
+            AppLocalizations.of(context)!.translate('all_files'),
+            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -100,10 +115,7 @@ class _FilesScreenState extends State<FilesScreen> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'clear',
-                child: Text('Clear History'),
-              ),
+              PopupMenuItem(value: 'clear', child: Text(AppLocalizations.of(context)!.translate('clear_history'))),
             ],
           ),
         ],
@@ -123,14 +135,17 @@ class _FilesScreenState extends State<FilesScreen> {
         child: TextField(
           controller: _searchController,
           decoration: InputDecoration(
-            hintText: "Search your PDFs...",
+            hintText: AppLocalizations.of(context)!.translate('search_pdfs'),
             hintStyle: const TextStyle(color: Colors.grey),
             prefixIcon: const Icon(Icons.search, color: Colors.grey),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
           ),
           onChanged: (val) {
-            Provider.of<PdfProvider>(context, listen: false).setSearchQuery(val);
+            Provider.of<PdfProvider>(
+              context,
+              listen: false,
+            ).setSearchQuery(val);
           },
         ),
       ),
@@ -144,7 +159,7 @@ class _FilesScreenState extends State<FilesScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (provider.signedDocuments.isEmpty) {
-          return const Center(child: Text("No signed documents found."));
+          return Center(child: Text(AppLocalizations.of(context)!.translate('no_files')));
         }
 
         return ListView.builder(
@@ -178,22 +193,28 @@ class _FilesScreenState extends State<FilesScreen> {
           _pdfIcon(pdfColor),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  doc.title,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: pdfColor.text,
+            child: GestureDetector(
+              onTap: () =>
+                  Navigator.pushNamed(context, '/viewer', arguments: doc.path),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    doc.title,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: pdfColor.text,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text("Signed on: $dateStr • $sizeKb KB",
-                    style: TextStyle(color: pdfColor.light, fontSize: 12)),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    "Signed on: $dateStr • $sizeKb KB",
+                    style: TextStyle(color: pdfColor.light, fontSize: 12),
+                  ),
+                ],
+              ),
             ),
           ),
           PopupMenuButton<String>(
@@ -204,16 +225,18 @@ class _FilesScreenState extends State<FilesScreen> {
               } else if (action == 'share') {
                 await Share.shareXFiles([XFile(doc.path)]);
               } else if (action == 'delete') {
-                Provider.of<PdfProvider>(context, listen: false)
-                    .removeSignedDocument(doc.id);
+                Provider.of<PdfProvider>(
+                  context,
+                  listen: false,
+                ).removeSignedDocument(doc.id);
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'open', child: Text('Open')),
-              const PopupMenuItem(value: 'share', child: Text('Share')),
-              const PopupMenuItem(value: 'delete', child: Text('Delete')),
+              PopupMenuItem(value: 'open', child: Text(AppLocalizations.of(context)!.translate('open'))),
+              PopupMenuItem(value: 'share', child: Text(AppLocalizations.of(context)!.translate('share'))),
+              PopupMenuItem(value: 'delete', child: Text(AppLocalizations.of(context)!.translate('delete'))),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -226,7 +249,7 @@ class _FilesScreenState extends State<FilesScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (provider.signatures.isEmpty) {
-          return const Center(child: Text("No signatures found."));
+          return Center(child: Text(AppLocalizations.of(context)!.translate('no_files')));
         }
 
         return GridView.builder(
@@ -269,21 +292,40 @@ class _FilesScreenState extends State<FilesScreen> {
   }
 
   Widget _buildSignaturePreview(SignatureModel sig) {
-    if ((sig.type == 'draw' || sig.type == 'image')  && sig.path != null) {
+    if ((sig.type == 'draw' || sig.type == 'image') && sig.path != null) {
       final file = File(sig.path!);
       if (file.existsSync()) {
         return Image.file(file, fit: BoxFit.contain, height: 80);
       }
     } else if (sig.type == 'text' && sig.text != null) {
-      // If we saved text and font, just render text. 
-      // But we can't reliably load GoogleFonts asynchronously in sync build, 
-      // so let's fallback if font isn't loaded or simply display it.
+      TextStyle safeStyle;
+      try {
+        safeStyle = sig.font != null
+            ? GoogleFonts.getFont(
+                sig.font!,
+                textStyle: TextStyle(
+                  fontSize: 32,
+                  color: sig.color != null ? Color(sig.color!) : Colors.black,
+                ),
+              )
+            : TextStyle(
+                fontSize: 32,
+                color: sig.color != null ? Color(sig.color!) : Colors.black,
+              );
+      } catch (e) {
+        // Fallback to standard font if Google Font fails to load
+        safeStyle = TextStyle(
+          fontSize: 32,
+          color: sig.color != null ? Color(sig.color!) : Colors.black,
+        );
+      }
+
       return FittedBox(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
             sig.text!,
-            style: TextStyle(fontSize: 32, fontFamily: sig.font),
+            style: safeStyle,
           ),
         ),
       );

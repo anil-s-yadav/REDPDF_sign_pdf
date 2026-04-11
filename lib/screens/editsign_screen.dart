@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
+import '../l10n/app_localizations.dart';
 
 class EditSignatureScreen extends StatefulWidget {
   const EditSignatureScreen({super.key});
@@ -25,11 +26,14 @@ class _EditSignatureScreenState extends State<EditSignatureScreen> {
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.close),
         ),
-        title: const Text("Edit Signature"),
+        title: Text(AppLocalizations.of(context)!.translate('edit_signature')),
         actions: [
           TextButton(
-            onPressed: () {},
-            child: Text("Save", style: TextStyle(color: colors.primary)),
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              AppLocalizations.of(context)!.translate('save'),
+              style: TextStyle(color: colors.primary),
+            ),
           ),
         ],
       ),
@@ -48,7 +52,9 @@ class _EditSignatureScreenState extends State<EditSignatureScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  "EDITING TOOLS",
+                  AppLocalizations.of(
+                    context,
+                  )!.translate('editing_tools').toUpperCase(),
                   style: TextStyle(
                     color: colors.primary,
                     letterSpacing: 1,
@@ -67,10 +73,30 @@ class _EditSignatureScreenState extends State<EditSignatureScreen> {
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
                 children: [
-                  _tool(colors, "Crop", Icons.crop, 0),
-                  _tool(colors, "Rotate", Icons.rotate_right, 1),
-                  _tool(colors, "Thickness", Icons.menu, 2),
-                  _tool(colors, "Color", Icons.palette, 3),
+                  _tool(
+                    colors,
+                    AppLocalizations.of(context)!.translate('crop'),
+                    Icons.crop,
+                    0,
+                  ),
+                  _tool(
+                    colors,
+                    AppLocalizations.of(context)!.translate('rotate'),
+                    Icons.rotate_right,
+                    1,
+                  ),
+                  _tool(
+                    colors,
+                    AppLocalizations.of(context)!.translate('thickness'),
+                    Icons.menu,
+                    2,
+                  ),
+                  _tool(
+                    colors,
+                    AppLocalizations.of(context)!.translate('color'),
+                    Icons.palette,
+                    3,
+                  ),
                 ],
               ),
 
@@ -90,8 +116,10 @@ class _EditSignatureScreenState extends State<EditSignatureScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {},
-                  child: const Text("Save Changes"),
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    AppLocalizations.of(context)!.translate('save_changes'),
+                  ),
                 ),
               ),
 
@@ -104,7 +132,7 @@ class _EditSignatureScreenState extends State<EditSignatureScreen> {
                   Icon(Icons.delete, color: colors.light),
                   const SizedBox(width: 6),
                   Text(
-                    "Delete Signature",
+                    AppLocalizations.of(context)!.translate('delete_signature'),
                     style: TextStyle(color: colors.light),
                   ),
                 ],
@@ -143,7 +171,7 @@ class _EditSignatureScreenState extends State<EditSignatureScreen> {
             alignment: Alignment.centerRight,
             child: OutlinedButton(
               onPressed: () {},
-              child: const Text("Preview"),
+              child: Text(AppLocalizations.of(context)!.translate('preview')),
             ),
           ),
         ],
@@ -195,7 +223,7 @@ class _EditSignatureScreenState extends State<EditSignatureScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Stroke Thickness"),
+              Text(AppLocalizations.of(context)!.translate('stroke_thickness')),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -250,7 +278,7 @@ class _EditSignatureScreenState extends State<EditSignatureScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Signature Color"),
+          Text(AppLocalizations.of(context)!.translate('signature_color')),
           const SizedBox(height: 10),
 
           Row(

@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
 import 'package:sign_pdf_redpdf/providers/theme_provider.dart';
+import '../l10n/app_localizations.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -67,8 +68,8 @@ class HomeScreen extends StatelessWidget {
                   context,
                   colors: colors,
                   icon: Icons.document_scanner,
-                  title: "Scan Document",
-                  subtitle: "Scan paper documents into PDF",
+                  title: AppLocalizations.of(context)!.translate('scan_pdf'),
+                  subtitle: AppLocalizations.of(context)!.translate('scan_subtitle'),
                   bgColor: colors.card,
                   iconBg: colors.primary,
                 ),
@@ -83,8 +84,8 @@ class HomeScreen extends StatelessWidget {
                   context,
                   colors: colors,
                   icon: Icons.edit_document,
-                  title: "Sign PDF",
-                  subtitle: "Add your signature to PDF",
+                  title: AppLocalizations.of(context)!.translate('sign_pdf'),
+                  subtitle: AppLocalizations.of(context)!.translate('sign_subtitle'),
                   bgColor: colors.card,
                   iconBg: Colors.purple,
                 ),
@@ -99,8 +100,10 @@ class HomeScreen extends StatelessWidget {
                   context,
                   colors: colors,
                   icon: Icons.draw,
-                  title: "Create Signature",
-                  subtitle: "Draw or upload your digital signature",
+                  title: AppLocalizations.of(
+                    context,
+                  )!.translate('create_signature'),
+                  subtitle: AppLocalizations.of(context)!.translate('create_subtitle'),
                   bgColor: colors.card,
                   iconBg: Colors.cyan,
                 ),
@@ -116,7 +119,10 @@ class HomeScreen extends StatelessWidget {
   Widget _circleIcon(IconData icon, Color bg) {
     return Container(
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: bg.withOpacity(0.2), shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: bg.withOpacity(0.2),
+        shape: BoxShape.circle,
+      ),
       child: Icon(icon, size: 20, color: bg),
     );
   }
@@ -132,10 +138,10 @@ class HomeScreen extends StatelessWidget {
     required Color iconBg,
   }) {
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(35),
+        borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
             color: iconBg.withOpacity(0.05),
@@ -150,7 +156,8 @@ class HomeScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            spacing: 15,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               // Icon Box
               Container(
@@ -169,19 +176,21 @@ class HomeScreen extends StatelessWidget {
                 child: Icon(icon, color: Colors.white),
               ),
 
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: iconBg,
+                ),
+              ),
+              Spacer(),
               Icon(Icons.chevron_right, color: colors.light),
             ],
           ),
+
           const SizedBox(height: 15),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: iconBg,
-            ),
-          ),
-          const SizedBox(height: 4),
+          // const SizedBox(height: 4),
           Text(subtitle, style: TextStyle(color: colors.light, fontSize: 13)),
         ],
       ),

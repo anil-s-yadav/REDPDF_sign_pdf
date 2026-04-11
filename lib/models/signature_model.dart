@@ -6,6 +6,7 @@ class SignatureModel {
   final String? path; // for image/draw
   final String? text; // for text
   final String? font; // for text
+  final int? color; // for text color (ARGB)
   final DateTime createdAt;
 
   SignatureModel({
@@ -14,6 +15,7 @@ class SignatureModel {
     this.path,
     this.text,
     this.font,
+    this.color,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -24,6 +26,7 @@ class SignatureModel {
       'path': path,
       'text': text,
       'font': font,
+      'color': color,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -35,6 +38,7 @@ class SignatureModel {
       path: json['path'],
       text: json['text'],
       font: json['font'],
+      color: json['color'],
       createdAt: DateTime.parse(json['createdAt']),
     );
   }

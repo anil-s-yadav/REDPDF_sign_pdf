@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
 import '../providers/theme_provider.dart';
+import '../providers/language_provider.dart';
+import '../l10n/app_localizations.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,9 +44,117 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Save location updated!')));
+        ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.translate('save_location_updated'))));
       }
     }
+  }
+
+  void _showLanguageDialog(
+    BuildContext context,
+    LanguageProvider languageProvider,
+    AppColors color,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: color.card,
+          title: Text("Select Language", style: TextStyle(color: color.text)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _languageOption("English", "en", languageProvider, color),
+                _languageOption("हिन्दी (Hindi)", "hi", languageProvider, color),
+                _languageOption(
+                  "Español (Spanish)",
+                  "es",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Português (Brasil)",
+                  "pt",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Bahasa Indonesia",
+                  "id",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Français (French)",
+                  "fr",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Deutsch (German)",
+                  "de",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "العربية (Arabic)",
+                  "ar",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Русский (Russian)",
+                  "ru",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Türkçe (Turkish)",
+                  "tr",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Tiếng Việt (Vietnamese)",
+                  "vi",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "日本語 (Japanese)",
+                  "ja",
+                  languageProvider,
+                  color,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _languageOption(
+    String label,
+    String code,
+    LanguageProvider provider,
+    AppColors color,
+  ) {
+    final isSelected = provider.locale.languageCode == code;
+    return ListTile(
+      title: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? color.primary : color.text,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      onTap: () {
+        provider.changeLanguage(code);
+        Navigator.pop(context);
+      },
+      trailing: isSelected ? Icon(Icons.check, color: color.primary) : null,
+    );
   }
 
   @override
@@ -81,37 +191,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 25),
 
               /// ⚙️ SETTINGS
-              _sectionTitle("SETTINGS"),
+              _sectionTitle(
+                AppLocalizations.of(
+                  context,
+                )!.translate('settings').toUpperCase(),
+              ),
 
               _card(
                 color.card,
                 child: Column(
                   children: [
                     SwitchListTile(
-                      thumbColor: WidgetStatePropertyAll(Colors.blue),
-                      trackOutlineColor: WidgetStatePropertyAll(Colors.blue),
+                      thumbColor: WidgetStatePropertyAll(
+                        color.primary.withAlpha(200),
+                      ),
+                      trackOutlineColor: WidgetStatePropertyAll(
+                        color.primary.withAlpha(200),
+                      ),
+                      activeThumbColor: color.text.withAlpha(200),
+
+                      activeTrackColor: Colors.black54,
+
                       value: context.watch<ThemeProvider>().isDarkMode,
                       onChanged: (val) =>
                           context.read<ThemeProvider>().toggleDarkMode(val),
-                      title: const Text("Dark Mode"),
+                      title: Text(
+                        AppLocalizations.of(context)!.translate('theme_mode'),
+                      ),
                       secondary: Container(
                         height: 50,
                         width: 50,
-                        padding: EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(20),
-                          color: Colors.blue.shade50,
+                          color: color.primary.withOpacity(0.1),
                         ),
-                        child: const Icon(Icons.dark_mode, color: Colors.blue),
+                        child: Icon(Icons.dark_mode, color: color.primary),
                       ),
                     ),
                     _tile(
-                      "Storage Location",
+                      AppLocalizations.of(
+                            context,
+                          )?.translate('storage_location') ??
+                          "Storage Location",
                       _saveLocation.split('/').last,
                       color,
                       Icons.storage,
                       Icons.edit,
                       _pickSaveLocation,
+                    ),
+                    Consumer<LanguageProvider>(
+                      builder: (context, languageProvider, child) {
+                        return _tile(
+                          AppLocalizations.of(context)!.translate('language'),
+                          languageProvider.locale.languageCode.toUpperCase(),
+                          color,
+                          Icons.language,
+                          null,
+                          () => _showLanguageDialog(
+                            context,
+                            languageProvider,
+                            color,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -120,22 +263,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 20),
 
               /// 📄 SUPPORT
-              _sectionTitle("SUPPORT & LEGAL"),
+              _sectionTitle(
+                "${AppLocalizations.of(context)!.translate('share_file')} & ${AppLocalizations.of(context)!.translate('privacy_policy')}",
+              ),
 
               _card(
                 color.card,
                 child: Column(
                   children: [
+                    _featuredTile(color),
                     _tile(
-                      "Rate Us",
-                      null,
-                      color,
-                      Icons.star,
-                      Icons.open_in_new,
-                      null,
-                    ),
-                    _tile(
-                      "Our Other Apps",
+                      AppLocalizations.of(context)!.translate('other_apps'),
                       null,
                       color,
                       Icons.apps,
@@ -143,7 +281,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       null,
                     ),
                     _tile(
-                      "Privacy Policy",
+                      AppLocalizations.of(context)!.translate('privacy_policy'),
                       null,
                       color,
                       Icons.privacy_tip_outlined,
@@ -151,7 +289,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       null,
                     ),
                     _tile(
-                      "Terms & Conditions",
+                      AppLocalizations.of(context)!.translate('terms'),
                       null,
                       color,
                       Icons.gavel_outlined,
@@ -167,7 +305,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 10),
 
               Text(
-                "VERSION 1.0.0 (1) • A Product by - REDPDF",
+                "${AppLocalizations.of(context)!.translate('version').toUpperCase()} 1.0.0 (1) • A Product by - REDPDF",
                 style: TextStyle(fontSize: 12, color: color.text),
               ),
 
@@ -210,9 +348,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: EdgeInsets.all(10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            color: Colors.blue.shade50,
+            color: color.primary.withOpacity(0.1),
           ),
-          child: Icon(icon1, color: Colors.blue),
+          child: Icon(icon1, color: color.primary),
         ),
         title: Text(title),
         trailing: trailingText != null
@@ -246,8 +384,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
           title,
           style: const TextStyle(
             fontSize: 13,
-            letterSpacing: 1,
+            letterSpacing: 1.2,
+            fontWeight: FontWeight.bold,
             color: Colors.grey,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _featuredTile(AppColors color) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color.primary, color.primary.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: color.primary.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            // TODO: Implement Rate Us functionality (open Play Store)
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: const Icon(
+                    Icons.star_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Rate Us",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        "Your feedback helps us improve!",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ],
+            ),
           ),
         ),
       ),

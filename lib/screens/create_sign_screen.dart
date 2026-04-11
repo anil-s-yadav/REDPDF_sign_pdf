@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:signature/signature.dart';
@@ -10,6 +11,7 @@ import 'package:sign_pdf_redpdf/theme/app_theme.dart';
 import 'package:sign_pdf_redpdf/models/signature_model.dart';
 import 'package:sign_pdf_redpdf/providers/signature_provider.dart';
 import 'package:image/image.dart' as img;
+import '../l10n/app_localizations.dart';
 
 class CreateSignatureScreen extends StatefulWidget {
   const CreateSignatureScreen({super.key});
@@ -34,14 +36,77 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
   final TextEditingController _textController = TextEditingController();
   String _typedText = '';
   int _selectedFontIndex = 0;
+  bool _isProcessing = false;
+
+  final List<Color> _signatureColors = [
+    Colors.black,
+    const Color(0xFF003366), // Navy Blue
+    const Color(0xFF1B5E20), // Forest Green
+    const Color(0xFFB22222), // Firebrick Red
+    Colors.blue,
+    Colors.purple,
+  ];
 
   final List<String> _fonts = [
+    'Noto Sans',
+    'Noto Sans Devanagari', // Hindi Global
+    'Noto Sans Arabic', // Arabic Global
+    'Noto Sans JP', // Japanese Global
+    'Tiro Devanagari Hindi', // Stylized Hindi
+    'Mukta', // Hindi (Modern)
+    'Hind', // Hindi (Standard)
+    'Cairo', // Arabic (Contemporary)
+    'Amiri', // Arabic (Classical)
+    'Almarai', // Arabic (Soft)
+    'Tajawal', // Arabic (Strong)
+    'Sawarabi Mincho', // Japanese (Classic)
+    'Lora', // Russian / Vietnamese support
+    'Montserrat', // Global support
+    'Lexend', // Vietnamese support
+    'Be Vietnam Pro', // Vietnamese support
+    'Roboto Slab', // Russian support
+    'Playfair Display', // Global support
+    'EB Garamond', // Global support
+    'Poppins', // Multi-language Sans
     'Dancing Script',
     'Pacifico',
     'Satisfy',
     'Great Vibes',
     'Caveat',
     'Handlee',
+    'Alex Brush',
+    'Allura',
+    'Arizonia',
+    'Bad Script',
+    'Bilbo',
+    'Calligraffitti',
+    'Clicker Script',
+    'Cookie',
+    'Damion',
+    'Grand Hotel',
+    'Homemade Apple',
+    'Italianno',
+    'Jim Nightshade',
+    'Just Another Hand',
+    'Kaushan Script',
+    'League Script',
+    'Marck Script',
+    'Meddon',
+    'Miss Fajardose',
+    'Monsieur La Doulaise',
+    'Mr De Haviland',
+    'Mrs Saint Delafield',
+    'Nothing You Could Do',
+    'Parisienne',
+    'Pinyon Script',
+    'Playball',
+    'Quintessential',
+    'Rancho',
+    'Rochester',
+    'Sacramento',
+    'Shadows Into Light',
+    'Tangerine',
+    'Yellowtail',
   ];
 
   @override
@@ -65,60 +130,120 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
     super.dispose();
   }
 
+  List<String> _getFilteredFonts() {
+    if (_typedText.isEmpty) return _fonts;
+
+    // Detect character sets
+    bool hasArabic = RegExp(r'[\u0600-\u06FF]').hasMatch(_typedText);
+    bool hasDevanagari = RegExp(r'[\u0900-\u097F]').hasMatch(_typedText);
+    bool hasJapanese =
+        RegExp(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]').hasMatch(_typedText);
+    bool hasRussian = RegExp(r'[\u0400-\u04FF]').hasMatch(_typedText);
+
+    List<String> prioritized = [];
+    List<String> others = [];
+
+    for (var font in _fonts) {
+      bool isMatch = false;
+      if (hasArabic &&
+          (font.contains('Arabic') ||
+              font == 'Cairo' ||
+              font == 'Amiri' ||
+              font == 'Almarai' ||
+              font == 'Tajawal')) isMatch = true;
+      if (hasDevanagari &&
+          (font.contains('Devanagari') ||
+              font == 'Mukta' ||
+              font == 'Hind' ||
+              font == 'Tiro Devanagari Hindi')) isMatch = true;
+      if (hasJapanese &&
+          (font.contains('JP') ||
+              font == 'Sawarabi Mincho' ||
+              font == 'Noto Sans JP')) isMatch = true;
+      if (hasRussian &&
+          (font == 'Bad Script' ||
+              font == 'Roboto Slab' ||
+              font == 'Lora' ||
+              font == 'Montserrat' ||
+              font == 'EB Garamond')) isMatch = true;
+
+      // Latin-based (English, Spanish, etc) - most scripts work
+      if (!hasArabic && !hasDevanagari && !hasJapanese && !hasRussian) {
+        if (font != 'Noto Sans Devanagari' &&
+            !font.contains('Arabic') &&
+            !font.contains('JP')) {
+          isMatch = true;
+        }
+      }
+
+      if (isMatch)
+        prioritized.add(font);
+      else
+        others.add(font);
+    }
+
+    // Always keep Noto Sans at top as universal fallback
+    if (prioritized.contains('Noto Sans')) {
+      prioritized.remove('Noto Sans');
+      prioritized.insert(0, 'Noto Sans');
+    } else if (others.contains('Noto Sans')) {
+      others.remove('Noto Sans');
+      prioritized.insert(0, 'Noto Sans');
+    }
+
+    return [...prioritized, ...others];
+  }
+
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
-      // Remove background
-      final originalImage = img.decodeImage(
-        await File(pickedFile.path).readAsBytes(),
-      );
-      if (originalImage != null) {
-        final processedImage = img.Image(
-          width: originalImage.width,
-          height: originalImage.height,
-        );
-        for (var y = 0; y < originalImage.height; y++) {
-          for (var x = 0; x < originalImage.width; x++) {
-            final pixel = originalImage.getPixel(x, y);
-            // Calculate luminance
-            final num luminance = 0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b;
-            if (luminance > 160) {
-              // Light pixel, likely background -> Transparent
-              processedImage.setPixelRgba(
-                x,
-                y,
-                pixel.r,
-                pixel.g,
-                pixel.b,
-                0,
-              );
-            } else {
-              // Dark pixel, likely signature -> Opaque
-              processedImage.setPixelRgba(
-                x,
-                y,
-                pixel.r,
-                pixel.g,
-                pixel.b,
-                255,
-              );
-            }
-          }
-        }
+      setState(() => _isProcessing = true);
+      try {
+        final bytes = await File(pickedFile.path).readAsBytes();
+
+        // Remove background in a background isolate to avoid freezing UI
+        final processedBytes = await compute(_removeBackgroundProcess, bytes);
 
         final directory = await getTemporaryDirectory();
         final imagePath =
             '${directory.path}/processed_signature_${DateTime.now().millisecondsSinceEpoch}.png';
         final file = File(imagePath);
-        await file.writeAsBytes(img.encodePng(processedImage));
+        await file.writeAsBytes(processedBytes);
 
         setState(() {
           _uploadedImage = file;
         });
+      } catch (e) {
+        debugPrint("Error processing image: $e");
+      } finally {
+        setState(() => _isProcessing = false);
       }
     }
+  }
+
+  static Uint8List _removeBackgroundProcess(Uint8List bytes) {
+    final originalImage = img.decodeImage(bytes);
+    if (originalImage == null) return Uint8List(0);
+
+    final image = img.Image(
+      width: originalImage.width,
+      height: originalImage.height,
+    );
+    for (var y = 0; y < originalImage.height; y++) {
+      for (var x = 0; x < originalImage.width; x++) {
+        final pixel = originalImage.getPixel(x, y);
+        final num luminance =
+            0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b;
+        if (luminance > 160) {
+          image.setPixelRgba(x, y, pixel.r, pixel.g, pixel.b, 0);
+        } else {
+          image.setPixelRgba(x, y, pixel.r, pixel.g, pixel.b, 255);
+        }
+      }
+    }
+    return Uint8List.fromList(img.encodePng(image));
   }
 
   Future<void> _saveSignature() async {
@@ -128,42 +253,97 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
     );
     final String id = DateTime.now().millisecondsSinceEpoch.toString();
 
-    if (selectedTab == 0) {
-      if (_signatureController.isEmpty) return;
+    try {
+      if (selectedTab == 0) {
+        if (_signatureController.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text(AppLocalizations.of(context)!.translate('sign_here')),
+            ),
+          );
+          return;
+        }
 
-      final Uint8List? data = await _signatureController.toPngBytes();
-      if (data != null) {
+        final Uint8List? data = await _signatureController.toPngBytes();
+        if (data != null) {
+          final dir = await signatureProvider.getSignaturesPath();
+          final path = '$dir/draw_$id.png';
+          final file = File(path);
+          await file.writeAsBytes(data);
+
+          final sig = SignatureModel(id: id, type: 'draw', path: path);
+          await signatureProvider.addSignature(sig);
+        }
+      } else if (selectedTab == 1) {
+        if (_uploadedImage == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.translate('upload')),
+            ),
+          );
+          return;
+        }
+
         final dir = await signatureProvider.getSignaturesPath();
-        final path = '$dir/draw_$id.png';
-        final file = File(path);
-        await file.writeAsBytes(data);
+        final path = '$dir/upload_$id.png';
+        final file = await _uploadedImage!.copy(path);
 
-        final sig = SignatureModel(id: id, type: 'draw', path: path);
+        final sig = SignatureModel(id: id, type: 'image', path: file.path);
+        await signatureProvider.addSignature(sig);
+      } else if (selectedTab == 2) {
+        if (_typedText.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)!.translate('enter_name'),
+              ),
+            ),
+          );
+          return;
+        }
+
+        final filteredFonts = _getFilteredFonts();
+        final sig = SignatureModel(
+          id: id,
+          type: 'text',
+          text: _typedText,
+          font: filteredFonts[_selectedFontIndex],
+          color: selectedColor.value,
+        );
         await signatureProvider.addSignature(sig);
       }
-    } else if (selectedTab == 1) {
-      if (_uploadedImage == null) return;
-
-      final dir = await signatureProvider.getSignaturesPath();
-      final path = '$dir/upload_$id.png';
-      final file = await _uploadedImage!.copy(path);
-
-      final sig = SignatureModel(id: id, type: 'image', path: file.path);
-      await signatureProvider.addSignature(sig);
-    } else if (selectedTab == 2) {
-      if (_typedText.isEmpty) return;
-
-      final sig = SignatureModel(
-        id: id,
-        type: 'text',
-        text: _typedText,
-        font: _fonts[_selectedFontIndex],
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error saving: $e"),
+          backgroundColor: Colors.red,
+        ),
       );
-      await signatureProvider.addSignature(sig);
+      return;
     }
 
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          AppLocalizations.of(context)!.translate('saved_successfully'),
+        ),
+        backgroundColor: Colors.green,
+      ),
+    );
+
     if (mounted) {
-      Navigator.pop(context);
+      // Adding a small delay to ensure provider state is synced before redirect
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/',
+            (route) => false,
+            arguments: {'index': 1, 'tabIndex': 1},
+          );
+        }
+      });
     }
   }
 
@@ -175,7 +355,9 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
     return Scaffold(
       backgroundColor: colors.bg,
       appBar: AppBar(
-        title: const Text("Create Signature"),
+        title: Text(
+          AppLocalizations.of(context)!.translate('create_signature'),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -185,7 +367,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
         child: Column(
           children: [
             _tabs(colors),
-            const SizedBox(height: 10),
+            // const SizedBox(height: 5),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -196,7 +378,9 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            "SIGNATURE CANVAS",
+                            AppLocalizations.of(
+                              context,
+                            )!.translate('draw').toUpperCase(),
                             style: TextStyle(
                               color: colors.light,
                               letterSpacing: 1,
@@ -206,13 +390,21 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                             children: [
                               GestureDetector(
                                 onTap: () => _signatureController.undo(),
-                                child: _actionText("Undo", Icons.undo, colors),
+                                child: _actionText(
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.translate('undo'),
+                                  Icons.undo,
+                                  colors,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               GestureDetector(
                                 onTap: () => _signatureController.clear(),
                                 child: _actionText(
-                                  "Clear",
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.translate('clear'),
                                   Icons.delete,
                                   colors,
                                   isDanger: true,
@@ -244,8 +436,12 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                       _controlsCard(colors),
                     ] else if (selectedTab == 1) ...[
                       Text(
-                        "UPLOAD SIGNATURE",
-                        style: TextStyle(color: colors.light, letterSpacing: 1),
+                        AppLocalizations.of(context)!
+                            .translate(
+                              'Click upload to select another signature.',
+                            )
+                            .toUpperCase(),
+                        style: TextStyle(color: colors.light, fontSize: 12),
                       ),
                       const SizedBox(height: 12),
                       GestureDetector(
@@ -260,7 +456,9 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                               color: colors.primary.withOpacity(0.4),
                             ),
                           ),
-                          child: _uploadedImage != null
+                          child: _isProcessing
+                              ? const Center(child: CircularProgressIndicator())
+                              : _uploadedImage != null
                               ? Image.file(_uploadedImage!, fit: BoxFit.contain)
                               : Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -272,7 +470,9 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      "Tap to upload from Gallery",
+                                      AppLocalizations.of(
+                                        context,
+                                      )!.translate('upload'),
                                       style: TextStyle(color: colors.light),
                                     ),
                                   ],
@@ -281,9 +481,24 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton.icon(
-                        icon: const Icon(Icons.image),
-                        label: const Text('Pick Image'),
-                        onPressed: _pickImage,
+                        icon: _isProcessing
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.image),
+                        label: Text(
+                          _isProcessing
+                              ? "Processing..."
+                              : AppLocalizations.of(
+                                  context,
+                                )!.translate('upload'),
+                        ),
+                        onPressed: _isProcessing ? null : _pickImage,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: colors.primary,
                           foregroundColor: Colors.white,
@@ -295,7 +510,9 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                         controller: _textController,
                         style: TextStyle(color: colors.text),
                         decoration: InputDecoration(
-                          hintText: 'Enter your name...',
+                          hintText: AppLocalizations.of(
+                            context,
+                          )!.translate('enter_name'),
                           hintStyle: TextStyle(color: colors.light),
                           filled: true,
                           fillColor: colors.card,
@@ -310,54 +527,88 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                           });
                         },
                       ),
-                      const SizedBox(height: 20),
-                      if (_typedText.isNotEmpty)
-                        SizedBox(
-                          height: 300,
-                          child: ListView.builder(
-                            itemCount: _fonts.length,
-                            itemBuilder: (context, index) {
-                              final fontName = _fonts[index];
-                              final isSelected = _selectedFontIndex == index;
-                              return GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedFontIndex = index;
-                                  });
-                                },
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? colors.primary.withOpacity(0.1)
-                                        : colors.card,
-                                    borderRadius: BorderRadius.circular(15),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? colors.primary
-                                          : colors.border,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Text(
+
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: _signatureColors
+                              .map((c) => _colorCircle(c))
+                              .toList(),
+                        ),
+                      ),
+
+                      ...[
+                        Builder(
+                          builder: (context) {
+                            final filteredFonts = _getFilteredFonts();
+                            if (_typedText.isEmpty) return const SizedBox.shrink();
+                            
+                            return SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.7,
+                              child: ListView.builder(
+                                itemCount: filteredFonts.length,
+                                itemBuilder: (context, index) {
+                                  final fontName = filteredFonts[index];
+                                  final isSelected = _selectedFontIndex == index;
+
+                                  // Safe font rendering for preview
+                                  Widget textWidget;
+                                  try {
+                                    textWidget = Text(
                                       _typedText,
                                       style: GoogleFonts.getFont(
                                         fontName,
                                         textStyle: TextStyle(
-                                          fontSize: 32,
+                                          fontSize: 30,
                                           color: isSelected
                                               ? colors.primary
-                                              : colors.text,
+                                              : selectedColor,
                                         ),
                                       ),
+                                    );
+                                  } catch (e) {
+                                    textWidget = Text(
+                                      _typedText,
+                                      style: TextStyle(
+                                        fontSize: 30,
+                                        color: isSelected
+                                            ? colors.primary
+                                            : selectedColor,
+                                      ),
+                                    );
+                                  }
+
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedFontIndex = index;
+                                      });
+                                    },
+                                    child: Container(
+                                      margin: const EdgeInsets.only(bottom: 20),
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? colors.primary.withOpacity(0.1)
+                                            : colors.card,
+                                        borderRadius: BorderRadius.circular(15),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? colors.primary
+                                              : colors.border,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: textWidget,
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
                         ),
+                      ],
                     ],
                   ],
                 ),
@@ -371,7 +622,11 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
   }
 
   Widget _tabs(AppColors colors) {
-    final tabs = ["Draw", "Upload", "Presets"];
+    final tabs = [
+      AppLocalizations.of(context)!.translate('draw'),
+      AppLocalizations.of(context)!.translate('upload'),
+      AppLocalizations.of(context)!.translate('presets'),
+    ];
 
     return Row(
       children: List.generate(tabs.length, (index) {
@@ -458,16 +713,14 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
             },
           ),
           const SizedBox(height: 10),
-          Text("PEN COLOR", style: TextStyle(color: colors.light)),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _colorCircle(Colors.black),
-              _colorCircle(colors.primary),
-              _colorCircle(colors.danger),
-              _colorCircle(colors.success),
-            ],
+          Text(
+            AppLocalizations.of(
+              context,
+            )!.translate('choose_color').toUpperCase(),
+            style: TextStyle(color: colors.light, fontSize: 12),
           ),
+          const SizedBox(height: 10),
+          Row(children: _signatureColors.map((c) => _colorCircle(c)).toList()),
         ],
       ),
     );
@@ -539,7 +792,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              child: const Text("Cancel"),
+              child: Text(AppLocalizations.of(context)!.translate('cancel')),
             ),
           ),
           const SizedBox(width: 12),
@@ -561,15 +814,18 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                     ),
                   ],
                 ),
-                child: const Center(
+                child: Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.check_circle, color: Colors.white),
                       SizedBox(width: 8),
                       Text(
-                        "Save Signature",
-                        style: TextStyle(
+                        AppLocalizations.of(
+                              context,
+                            )?.translate('save_signature') ??
+                            "",
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),

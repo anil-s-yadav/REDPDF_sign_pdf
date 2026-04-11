@@ -8,6 +8,7 @@ import 'package:sign_pdf_redpdf/screens/profilescreen.dart';
 import 'package:sign_pdf_redpdf/screens/scan_pdf_screen.dart';
 import 'package:sign_pdf_redpdf/screens/scancamera_screen.dart';
 import 'package:sign_pdf_redpdf/screens/scan_success_screen.dart';
+import 'package:sign_pdf_redpdf/screens/sign_success_screen.dart';
 import 'package:sign_pdf_redpdf/screens/signpdf_screen.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
 
@@ -17,6 +18,9 @@ import 'package:provider/provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/signature_provider.dart';
 import 'providers/pdf_provider.dart';
+import 'providers/language_provider.dart';
+import 'l10n/app_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +30,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => SignatureProvider()),
         ChangeNotifierProvider(create: (_) => PdfProvider()),
+        ChangeNotifierProvider(create: (_) => LanguageProvider()),
       ],
       child: const MainApp(),
     ),
@@ -37,14 +42,35 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
+    return Consumer2<ThemeProvider, LanguageProvider>(
+      builder: (context, themeProvider, languageProvider, child) {
         return MaterialApp(
           title: 'PDF Master',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: themeProvider.themeMode,
+          locale: languageProvider.locale,
+          localizationsDelegates: const [
+            AppLocalizationsDelegate(),
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale('hi'),
+            Locale('es'),
+            Locale('ar'),
+            Locale('pt'),
+            Locale('fr'),
+            Locale('de'),
+            Locale('ja'),
+            Locale('id'),
+            Locale('ru'),
+            Locale('tr'),
+            Locale('vi'),
+          ],
           initialRoute: '/',
           routes: {
             '/': (context) => const NavigationPage(),
@@ -55,6 +81,7 @@ class MainApp extends StatelessWidget {
             '/createsign': (context) => const CreateSignatureScreen(),
             '/editsign': (context) => const EditSignatureScreen(),
             '/scan_success': (context) => const ScanSuccessScreen(),
+            '/sign_success': (context) => const SignSuccessScreen(),
             '/profile': (context) => const ProfileScreen(),
           },
           onGenerateRoute: (settings) {

@@ -10,7 +10,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
 import 'package:sign_pdf_redpdf/providers/pdf_provider.dart';
 import 'package:sign_pdf_redpdf/models/pdf_document_model.dart';
-import 'package:image/image.dart' as img; // if needed
+import 'package:image/image.dart' as img;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import '../l10n/app_localizations.dart';
 
 class ScanPdfScreen extends StatefulWidget {
   const ScanPdfScreen({super.key});
@@ -34,14 +37,47 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
       );
 
       final result = await scanner.scanDocument();
-      if (result.pdf != null) {
-        final pdfPath = result.pdf!.uri;
-        
+      if (result.images != null && result.images!.isNotEmpty) {
+        // Show loading while creating PDF
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => Center(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const CircularProgressIndicator(),
+              ),
+            ),
+          );
+        }
+
+        final pdf = pw.Document();
+        for (final imagePath in result.images!) {
+          final file = File(imagePath.replaceFirst('file://', ''));
+          if (await file.exists()) {
+            final image = pw.MemoryImage(await file.readAsBytes());
+            pdf.addPage(
+              pw.Page(
+                pageFormat: PdfPageFormat.a4,
+                build: (pw.Context context) {
+                  return pw.Center(
+                    child: pw.Image(image, fit: pw.BoxFit.contain),
+                  );
+                },
+              ),
+            );
+          }
+        }
+
         final prefs = await SharedPreferences.getInstance();
         String? customPath = prefs.getString('save_location');
         String dirPath = customPath ?? '/storage/emulated/0/Download/signpdf_refpdf';
-        
-        // Request Permissions
+
         if (Platform.isAndroid) {
           await Permission.storage.request();
           await Permission.manageExternalStorage.request();
@@ -56,40 +92,34 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
             dirPath = fallback.path;
           }
         }
-        
-        final newPath = '$dirPath/scanned_${DateTime.now().millisecondsSinceEpoch}.pdf';
-        
-        // ML Kit gives content:// or file:// URI, but we can treat it as a path mostly depending on OS
-        final File original = File(pdfPath.replaceFirst('file://', ''));
-        if (await original.exists()) {
-          await original.copy(newPath);
-          
-          try {
-            await MediaScanner.loadMedia(path: newPath);
-          } catch(e) {
-            // ignore
-          }
 
-          final pdfProvider = Provider.of<PdfProvider>(context, listen: false);
-          
-          final doc = PdfDocumentModel(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            title: "Scanned_Doc_${DateTime.now().millisecondsSinceEpoch}.pdf",
-            path: newPath,
-            sizeInBytes: await File(newPath).length(),
-          );
+        final newPath = '$dirPath/scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final file = File(newPath);
+        await file.writeAsBytes(await pdf.save());
 
-          await pdfProvider.addSignedDocument(doc);
+        try {
+          await MediaScanner.loadMedia(path: newPath);
+        } catch (e) {}
 
-          setState(() {
-            _scannedPdfPath = newPath;
-            _scannedImagePaths = result.images != null ? result.images!.map((img) => img.replaceFirst('file://', '')).toList() : [];
-          });
+        final pdfProvider = Provider.of<PdfProvider>(context, listen: false);
+        final doc = PdfDocumentModel(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          title: "Scanned_${DateTime.now().millisecondsSinceEpoch}.pdf",
+          path: newPath,
+          sizeInBytes: await file.length(),
+        );
+
+        await pdfProvider.addSignedDocument(doc);
+
+        if (mounted) {
+          Navigator.pop(context); // Remove loading
+          Navigator.pushNamed(context, '/scan_success', arguments: newPath);
         }
       }
       scanner.close();
     } catch (e) {
       if (mounted) {
+        if (Navigator.canPop(context)) Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
@@ -103,7 +133,7 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
     return Scaffold(
       backgroundColor: colors.bg,
       appBar: AppBar(
-        title: const Text("Scan to PDF"),
+        title: Text(AppLocalizations.of(context)!.translate('scan_pdf')),
         actions: [
           if (_scannedPdfPath != null)
             TextButton(
@@ -113,7 +143,7 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                   _scannedImagePaths = [];
                 });
               },
-              child: Text("Clear", style: TextStyle(color: colors.primary)),
+              child: Text(AppLocalizations.of(context)!.translate('clear'), style: TextStyle(color: colors.primary)),
             ),
         ],
       ),
@@ -131,7 +161,7 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                        const SizedBox(height: 100),
                        Icon(Icons.document_scanner, size: 80, color: colors.light),
                        const SizedBox(height: 16),
-                       Text("Ready to scan your documents?", style: TextStyle(fontSize: 18, color: colors.text)),
+                       Text(AppLocalizations.of(context)!.translate('ready_to_scan'), style: TextStyle(fontSize: 18, color: colors.text)),
                        const SizedBox(height: 32),
                        SizedBox(
                         width: double.infinity,
@@ -139,7 +169,7 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                         child: ElevatedButton.icon(
                           onPressed: _startScan,
                           icon: const Icon(Icons.camera_alt),
-                          label: const Text("Start Scanner"),
+                          label: Text(AppLocalizations.of(context)!.translate('start_scanner')),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: colors.primary,
                             foregroundColor: Colors.white,
@@ -154,7 +184,7 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "SCANNED PAGES (${_scannedImagePaths.length})",
+                      "${AppLocalizations.of(context)!.translate('scanned_pages').toUpperCase()} (${_scannedImagePaths.length})",
                       style: TextStyle(color: colors.light),
                     ),
                     Container(
@@ -197,7 +227,7 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                           Navigator.pushNamed(context, '/viewer', arguments: _scannedPdfPath);
                         },
                         icon: const Icon(Icons.picture_as_pdf),
-                        label: const Text("View"),
+                        label: Text(AppLocalizations.of(context)!.translate('preview')),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           backgroundColor: colors.card,
@@ -213,7 +243,7 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                           Share.shareXFiles([XFile(_scannedPdfPath!)]);
                         },
                         icon: const Icon(Icons.share),
-                        label: const Text("Share"),
+                        label: Text(AppLocalizations.of(context)!.translate('share')),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           backgroundColor: colors.card,
@@ -229,7 +259,7 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                           Navigator.pushNamed(context, '/signpdf', arguments: _scannedPdfPath);
                         },
                         icon: const Icon(Icons.edit_document),
-                        label: const Text("Sign"),
+                        label: Text(AppLocalizations.of(context)!.translate('sign_pdf')),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           backgroundColor: colors.primary,
@@ -284,7 +314,7 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
           children: [
             Icon(Icons.camera_alt, color: colors.primary),
             const SizedBox(height: 6),
-            Text("Add Pages", style: TextStyle(color: colors.primary)),
+            Text(AppLocalizations.of(context)!.translate('add_pages'), style: TextStyle(color: colors.primary)),
           ],
         ),
       ),
