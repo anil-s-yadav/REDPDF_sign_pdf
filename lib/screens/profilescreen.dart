@@ -42,9 +42,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _saveLocation = selectedDirectory;
       });
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.translate('save_location_updated'))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.translate('save_location_updated'),
+            ),
+          ),
+        );
       }
     }
   }
@@ -65,7 +69,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _languageOption("English", "en", languageProvider, color),
-                _languageOption("हिन्दी (Hindi)", "hi", languageProvider, color),
+                _languageOption(
+                  "हिन्दी (Hindi)",
+                  "hi",
+                  languageProvider,
+                  color,
+                ),
                 _languageOption(
                   "Español (Spanish)",
                   "es",
@@ -171,12 +180,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               "A product by: ",
               style: TextStyle(color: Colors.grey, fontSize: 13),
             ),
-            Icon(Icons.picture_as_pdf, color: color.primary),
+            Icon(Icons.picture_as_pdf, color: color.danger),
             const SizedBox(width: 8),
             Text(
               "RedPDF",
               style: TextStyle(
-                color: color.primary,
+                color: color.danger,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
               ),

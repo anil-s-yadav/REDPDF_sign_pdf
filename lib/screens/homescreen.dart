@@ -32,9 +32,9 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: colors.bg,
       appBar: AppBar(
         title: Text(
-          "SignPDF",
+          "Scan Document &\nAdd Signature",
           style: TextStyle(
-            fontSize: 26,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: colors.text,
           ),
@@ -69,7 +69,9 @@ class HomeScreen extends StatelessWidget {
                   colors: colors,
                   icon: Icons.document_scanner,
                   title: AppLocalizations.of(context)!.translate('scan_pdf'),
-                  subtitle: AppLocalizations.of(context)!.translate('scan_subtitle'),
+                  subtitle: AppLocalizations.of(
+                    context,
+                  )!.translate('scan_subtitle'),
                   bgColor: colors.card,
                   iconBg: colors.primary,
                 ),
@@ -85,7 +87,9 @@ class HomeScreen extends StatelessWidget {
                   colors: colors,
                   icon: Icons.edit_document,
                   title: AppLocalizations.of(context)!.translate('sign_pdf'),
-                  subtitle: AppLocalizations.of(context)!.translate('sign_subtitle'),
+                  subtitle: AppLocalizations.of(
+                    context,
+                  )!.translate('sign_subtitle'),
                   bgColor: colors.card,
                   iconBg: Colors.purple,
                 ),
@@ -103,7 +107,9 @@ class HomeScreen extends StatelessWidget {
                   title: AppLocalizations.of(
                     context,
                   )!.translate('create_signature'),
-                  subtitle: AppLocalizations.of(context)!.translate('create_subtitle'),
+                  subtitle: AppLocalizations.of(
+                    context,
+                  )!.translate('create_subtitle'),
                   bgColor: colors.card,
                   iconBg: Colors.cyan,
                 ),

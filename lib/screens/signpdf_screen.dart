@@ -26,15 +26,21 @@ class SignPdfScreen extends StatefulWidget {
 class SignatureInstance {
   final String id;
   final SignatureModel signature;
-  Offset position;
+  // Position in document-space coordinates (at zoom=1, relative to document origin)
+  Offset docPosition;
   double scale;
   int pageIndex;
+  // The scroll offset when the signature was placed — used to compute page-relative position for PDF save
+  Offset placementScrollOffset;
+  double placementZoom;
 
   SignatureInstance({
     required this.id,
     required this.signature,
-    required this.position,
+    required this.docPosition,
     required this.pageIndex,
+    required this.placementScrollOffset,
+    required this.placementZoom,
     this.scale = 1.0,
   });
 }
@@ -46,6 +52,31 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
   final PdfViewerController _pdfViewerController = PdfViewerController();
   int _currentPageIndex = 0;
   String? _selectedSignatureId;
+  Offset _scrollOffset = Offset.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _pdfViewerController.addListener(_onViewerChanged);
+  }
+
+  @override
+  void dispose() {
+    _pdfViewerController.removeListener(_onViewerChanged);
+    _pdfViewerController.dispose();
+    super.dispose();
+  }
+
+  void _onViewerChanged() {
+    final newOffset = _pdfViewerController.scrollOffset;
+    final newZoom = _pdfViewerController.zoomLevel;
+    if (newOffset != _scrollOffset || newZoom != zoomLevel) {
+      setState(() {
+        _scrollOffset = newOffset;
+        zoomLevel = newZoom;
+      });
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -123,6 +154,8 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                             },
                             child: Container(
                               decoration: BoxDecoration(
+                                // Fix #4: Always white bg so dark signatures are visible
+                                color: Colors.white,
                                 border: Border.all(color: Colors.grey.shade300),
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -141,20 +174,34 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
 
   void _addSignature(SignatureModel sig) {
     final newId = DateTime.now().millisecondsSinceEpoch.toString();
+    // Store position in document-space coordinates (zoom=1 reference)
+    final docPos = Offset(
+      (100 + _scrollOffset.dx) / zoomLevel,
+      (200 + _scrollOffset.dy) / zoomLevel,
+    );
     setState(() {
       _addedSignatures.add(
         SignatureInstance(
           id: newId,
           signature: sig,
-          position: const Offset(100, 200),
+          docPosition: docPos,
           pageIndex: _pdfViewerController.pageNumber - 1,
+          placementScrollOffset: _scrollOffset,
+          placementZoom: zoomLevel,
         ),
       );
       _selectedSignatureId = newId;
     });
   }
 
-  Widget _buildSignaturePreview(SignatureModel sig) {
+  /// Builds signature preview widget.
+  /// [scale] controls text font scaling for the on-PDF overlay.
+  /// [forPdfOverlay] when true, forces black text for visibility on white PDF pages.
+  Widget _buildSignaturePreview(
+    SignatureModel sig, {
+    double scale = 1.0,
+    bool forPdfOverlay = false,
+  }) {
     if ((sig.type == 'draw' || sig.type == 'image') && sig.path != null) {
       final file = File(sig.path!);
       if (file.existsSync()) {
@@ -164,21 +211,31 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
         );
       }
     } else if (sig.type == 'text' && sig.text != null) {
+      // Fix #2: Scale font size with the instance scale
+      final double fontSize = 24 * scale;
+      // Fix #3: Force black color for text on PDF overlay (PDF pages are white)
+      final Color textColor = forPdfOverlay
+          ? Colors.black
+          : (sig.color != null ? Color(sig.color!) : Colors.black);
+
       return Center(
-        child: Text(
-          sig.text!,
-          style: sig.font != null
-              ? GoogleFonts.getFont(
-                  sig.font!,
-                  textStyle: TextStyle(
-                    fontSize: 24,
-                    color: sig.color != null ? Color(sig.color!) : null,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            sig.text!,
+            style: sig.font != null
+                ? GoogleFonts.getFont(
+                    sig.font!,
+                    textStyle: TextStyle(
+                      fontSize: fontSize,
+                      color: textColor,
+                    ),
+                  )
+                : TextStyle(
+                    fontSize: fontSize,
+                    color: textColor,
                   ),
-                )
-              : TextStyle(
-                  fontSize: 24,
-                  color: sig.color != null ? Color(sig.color!) : null,
-                ),
+          ),
         ),
       );
     }
@@ -313,9 +370,19 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
           final PdfPage page = document.pages[instance.pageIndex];
           final sig = instance.signature;
 
+          // Compute page-relative screen position from document coordinates
+          // docPosition was stored as (screenPos + scrollOffset) / zoom at placement time
+          // To get the original screen position: docPosition * placementZoom - placementScrollOffset
+          final screenPos = Offset(
+            instance.docPosition.dx * instance.placementZoom -
+                instance.placementScrollOffset.dx,
+            instance.docPosition.dy * instance.placementZoom -
+                instance.placementScrollOffset.dy,
+          );
+
           // Approximating screen offset to PDF page
-          double x = instance.position.dx * 1.5;
-          double y = instance.position.dy * 1.5;
+          double x = screenPos.dx * 1.5;
+          double y = screenPos.dy * 1.5;
 
           if ((sig.type == 'draw' || sig.type == 'image') && sig.path != null) {
             final File imgFile = File(sig.path!);
@@ -333,8 +400,8 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
 
             if (sig.font != null) {
               final fontLower = sig.font!.toLowerCase();
-              if (fontLower.contains('script') || 
-                  fontLower.contains('hand') || 
+              if (fontLower.contains('script') ||
+                  fontLower.contains('hand') ||
                   fontLower.contains('brush')) {
                 fontFamily = PdfFontFamily.timesRoman;
                 fontStyle = PdfFontStyle.italic;
@@ -434,8 +501,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                 padding: EdgeInsets.only(
                   bottom: MediaQuery.of(context).size.height * 0.21,
                 ),
-                // padding: EdgeInsets.all(5),
-                // color: Colors.red, // space for bottom panel
                 child: SfPdfViewer.file(
                   File(_pdfPath!),
                   controller: _pdfViewerController,
@@ -467,13 +532,19 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
               ),
 
             // ✍️ Draggable & Resizable Signature Boxes
+            // Fix #1: Render using document-space coordinates compensated by scroll offset & zoom
             ..._addedSignatures
                 .where((instance) => instance.pageIndex == _currentPageIndex)
                 .map((instance) {
                   final isSelected = instance.id == _selectedSignatureId;
+                  // Convert document-space position to screen position
+                  final screenX =
+                      instance.docPosition.dx * zoomLevel - _scrollOffset.dx;
+                  final screenY =
+                      instance.docPosition.dy * zoomLevel - _scrollOffset.dy;
                   return Positioned(
-                    left: instance.position.dx,
-                    top: instance.position.dy,
+                    left: screenX,
+                    top: screenY,
                     child: GestureDetector(
                       onTap: () {
                         setState(() {
@@ -483,7 +554,14 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                       onPanUpdate: (details) {
                         setState(() {
                           _selectedSignatureId = instance.id;
-                          instance.position += details.delta;
+                          // Convert screen delta to document-space delta
+                          instance.docPosition += Offset(
+                            details.delta.dx / zoomLevel,
+                            details.delta.dy / zoomLevel,
+                          );
+                          // Update placement reference for accurate save
+                          instance.placementScrollOffset = _scrollOffset;
+                          instance.placementZoom = zoomLevel;
                         });
                       },
                       child: Stack(
@@ -503,7 +581,12 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                             child: SizedBox(
                               width: 150 * instance.scale,
                               height: 80 * instance.scale,
-                              child: _buildSignaturePreview(instance.signature),
+                              // Fix #2 & #3: pass scale and forPdfOverlay flag
+                              child: _buildSignaturePreview(
+                                instance.signature,
+                                scale: instance.scale,
+                                forPdfOverlay: true,
+                              ),
                             ),
                           ),
                           // ❌ Close Button

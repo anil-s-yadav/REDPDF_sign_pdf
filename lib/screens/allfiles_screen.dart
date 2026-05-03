@@ -78,8 +78,16 @@ class _FilesScreenState extends State<FilesScreen> {
                 indicatorColor: pdfColor.primary,
                 dividerColor: Colors.transparent,
                 tabs: [
-                  Tab(text: AppLocalizations.of(context)!.translate('signed_documents')),
-                  Tab(text: AppLocalizations.of(context)!.translate('my_signatures')),
+                  Tab(
+                    text: AppLocalizations.of(
+                      context,
+                    )!.translate('signed_documents'),
+                  ),
+                  Tab(
+                    text: AppLocalizations.of(
+                      context,
+                    )!.translate('my_signatures'),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -115,7 +123,12 @@ class _FilesScreenState extends State<FilesScreen> {
               }
             },
             itemBuilder: (context) => [
-              PopupMenuItem(value: 'clear', child: Text(AppLocalizations.of(context)!.translate('clear_history'))),
+              PopupMenuItem(
+                value: 'clear',
+                child: Text(
+                  AppLocalizations.of(context)!.translate('clear_history'),
+                ),
+              ),
             ],
           ),
         ],
@@ -159,7 +172,9 @@ class _FilesScreenState extends State<FilesScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (provider.signedDocuments.isEmpty) {
-          return Center(child: Text(AppLocalizations.of(context)!.translate('no_files')));
+          return Center(
+            child: Text(AppLocalizations.of(context)!.translate('no_files')),
+          );
         }
 
         return ListView.builder(
@@ -232,9 +247,18 @@ class _FilesScreenState extends State<FilesScreen> {
               }
             },
             itemBuilder: (context) => [
-              PopupMenuItem(value: 'open', child: Text(AppLocalizations.of(context)!.translate('open'))),
-              PopupMenuItem(value: 'share', child: Text(AppLocalizations.of(context)!.translate('share'))),
-              PopupMenuItem(value: 'delete', child: Text(AppLocalizations.of(context)!.translate('delete'))),
+              PopupMenuItem(
+                value: 'open',
+                child: Text(AppLocalizations.of(context)!.translate('open')),
+              ),
+              PopupMenuItem(
+                value: 'share',
+                child: Text(AppLocalizations.of(context)!.translate('share')),
+              ),
+              PopupMenuItem(
+                value: 'delete',
+                child: Text(AppLocalizations.of(context)!.translate('delete')),
+              ),
             ],
           ),
         ],
@@ -249,7 +273,9 @@ class _FilesScreenState extends State<FilesScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (provider.signatures.isEmpty) {
-          return Center(child: Text(AppLocalizations.of(context)!.translate('no_files')));
+          return Center(
+            child: Text(AppLocalizations.of(context)!.translate('no_files')),
+          );
         }
 
         return GridView.builder(
@@ -265,7 +291,7 @@ class _FilesScreenState extends State<FilesScreen> {
             final sig = provider.signatures[index];
             return Container(
               decoration: BoxDecoration(
-                color: pdfColor.card,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(color: pdfColor.border),
               ),
@@ -323,10 +349,7 @@ class _FilesScreenState extends State<FilesScreen> {
       return FittedBox(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Text(
-            sig.text!,
-            style: safeStyle,
-          ),
+          child: Text(sig.text!, style: safeStyle),
         ),
       );
     }

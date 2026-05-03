@@ -26,6 +26,8 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
   double penThickness = 2;
   Color selectedColor = Colors.black;
 
+  late TabController _tabController;
+
   // Draw Tab
   late SignatureController _signatureController;
 
@@ -48,26 +50,6 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
   ];
 
   final List<String> _fonts = [
-    'Noto Sans',
-    'Noto Sans Devanagari', // Hindi Global
-    'Noto Sans Arabic', // Arabic Global
-    'Noto Sans JP', // Japanese Global
-    'Tiro Devanagari Hindi', // Stylized Hindi
-    'Mukta', // Hindi (Modern)
-    'Hind', // Hindi (Standard)
-    'Cairo', // Arabic (Contemporary)
-    'Amiri', // Arabic (Classical)
-    'Almarai', // Arabic (Soft)
-    'Tajawal', // Arabic (Strong)
-    'Sawarabi Mincho', // Japanese (Classic)
-    'Lora', // Russian / Vietnamese support
-    'Montserrat', // Global support
-    'Lexend', // Vietnamese support
-    'Be Vietnam Pro', // Vietnamese support
-    'Roboto Slab', // Russian support
-    'Playfair Display', // Global support
-    'EB Garamond', // Global support
-    'Poppins', // Multi-language Sans
     'Dancing Script',
     'Pacifico',
     'Satisfy',
@@ -106,12 +88,37 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
     'Sacramento',
     'Shadows Into Light',
     'Tangerine',
-    'Yellowtail',
+    'Yellowtail', 'Noto Sans',
+    'Noto Sans Devanagari', // Hindi Global
+    'Noto Sans Arabic', // Arabic Global
+    'Noto Sans JP', // Japanese Global
+    'Tiro Devanagari Hindi', // Stylized Hindi
+    'Mukta', // Hindi (Modern)
+    'Hind', // Hindi (Standard)
+    'Cairo', // Arabic (Contemporary)
+    'Amiri', // Arabic (Classical)
+    'Almarai', // Arabic (Soft)
+    'Tajawal', // Arabic (Strong)
+    'Sawarabi Mincho', // Japanese (Classic)
+    'Lora', // Russian / Vietnamese support
+    'Montserrat', // Global support
+    'Lexend', // Vietnamese support
+    'Be Vietnam Pro', // Vietnamese support
+    'Roboto Slab', // Russian support
+    'Playfair Display', // Global support
+    'EB Garamond', // Global support
+    'Poppins', // Multi-language Sans
   ];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        selectedTab = _tabController.index;
+      });
+    });
     _initSignatureController();
   }
 
@@ -125,6 +132,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
 
   @override
   void dispose() {
+    _tabController.dispose();
     _signatureController.dispose();
     _textController.dispose();
     super.dispose();
@@ -136,8 +144,9 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
     // Detect character sets
     bool hasArabic = RegExp(r'[\u0600-\u06FF]').hasMatch(_typedText);
     bool hasDevanagari = RegExp(r'[\u0900-\u097F]').hasMatch(_typedText);
-    bool hasJapanese =
-        RegExp(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]').hasMatch(_typedText);
+    bool hasJapanese = RegExp(
+      r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]',
+    ).hasMatch(_typedText);
     bool hasRussian = RegExp(r'[\u0400-\u04FF]').hasMatch(_typedText);
 
     List<String> prioritized = [];
@@ -150,22 +159,26 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
               font == 'Cairo' ||
               font == 'Amiri' ||
               font == 'Almarai' ||
-              font == 'Tajawal')) isMatch = true;
+              font == 'Tajawal'))
+        isMatch = true;
       if (hasDevanagari &&
           (font.contains('Devanagari') ||
               font == 'Mukta' ||
               font == 'Hind' ||
-              font == 'Tiro Devanagari Hindi')) isMatch = true;
+              font == 'Tiro Devanagari Hindi'))
+        isMatch = true;
       if (hasJapanese &&
           (font.contains('JP') ||
               font == 'Sawarabi Mincho' ||
-              font == 'Noto Sans JP')) isMatch = true;
+              font == 'Noto Sans JP'))
+        isMatch = true;
       if (hasRussian &&
           (font == 'Bad Script' ||
               font == 'Roboto Slab' ||
               font == 'Lora' ||
               font == 'Montserrat' ||
-              font == 'EB Garamond')) isMatch = true;
+              font == 'EB Garamond'))
+        isMatch = true;
 
       // Latin-based (English, Spanish, etc) - most scripts work
       if (!hasArabic && !hasDevanagari && !hasJapanese && !hasRussian) {
@@ -258,8 +271,9 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
         if (_signatureController.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content:
-                  Text(AppLocalizations.of(context)!.translate('sign_here')),
+              content: Text(
+                AppLocalizations.of(context)!.translate('sign_here'),
+              ),
             ),
           );
           return;
@@ -326,7 +340,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          AppLocalizations.of(context)!.translate('saved_successfully'),
+          AppLocalizations.of(context)!.translate('Successfully saved'),
         ),
         backgroundColor: Colors.green,
       ),
@@ -369,12 +383,15 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
             _tabs(colors),
             // const SizedBox(height: 5),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    if (selectedTab == 0) ...[
-                      Row(
+              child: TabBarView(
+                controller: _tabController,
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
@@ -434,13 +451,20 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                       ),
                       const SizedBox(height: 20),
                       _controlsCard(colors),
-                    ] else if (selectedTab == 1) ...[
-                      Text(
+                      ],
+                    ),
+                  ),
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Text(
                         AppLocalizations.of(context)!
                             .translate(
-                              'Click upload to select another signature.',
+                              'Click upload to select another signature.\nSelect a image with sign and transparent background!',
                             )
                             .toUpperCase(),
+                        textAlign: TextAlign.center,
                         style: TextStyle(color: colors.light, fontSize: 12),
                       ),
                       const SizedBox(height: 12),
@@ -505,8 +529,14 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                           minimumSize: const Size(double.infinity, 50),
                         ),
                       ),
-                    ] else if (selectedTab == 2) ...[
-                      TextField(
+                      ],
+                    ),
+                  ),
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        TextField(
                         controller: _textController,
                         style: TextStyle(color: colors.text),
                         decoration: InputDecoration(
@@ -541,15 +571,17 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                         Builder(
                           builder: (context) {
                             final filteredFonts = _getFilteredFonts();
-                            if (_typedText.isEmpty) return const SizedBox.shrink();
-                            
+                            if (_typedText.isEmpty)
+                              return const SizedBox.shrink();
+
                             return SizedBox(
                               height: MediaQuery.of(context).size.height * 0.7,
                               child: ListView.builder(
                                 itemCount: filteredFonts.length,
                                 itemBuilder: (context, index) {
                                   final fontName = filteredFonts[index];
-                                  final isSelected = _selectedFontIndex == index;
+                                  final isSelected =
+                                      _selectedFontIndex == index;
 
                                   // Safe font rendering for preview
                                   Widget textWidget;
@@ -590,7 +622,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                                       decoration: BoxDecoration(
                                         color: isSelected
                                             ? colors.primary.withOpacity(0.1)
-                                            : colors.card,
+                                            : Colors.white,
                                         borderRadius: BorderRadius.circular(15),
                                         border: Border.all(
                                           color: isSelected
@@ -598,9 +630,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                                               : colors.border,
                                         ),
                                       ),
-                                      child: Center(
-                                        child: textWidget,
-                                      ),
+                                      child: Center(child: textWidget),
                                     ),
                                   );
                                 },
@@ -610,10 +640,11 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                         ),
                       ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
+          ),
             _bottomButtons(colors),
           ],
         ),
@@ -635,9 +666,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
         return Expanded(
           child: GestureDetector(
             onTap: () {
-              setState(() {
-                selectedTab = index;
-              });
+              _tabController.animateTo(index);
             },
             child: Column(
               children: [
