@@ -10,12 +10,8 @@ class PdfViewerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('PDF Viewer'),
-      ),
-      body: SfPdfViewer.file(
-        File(pdfPath),
-      ),
+      appBar: AppBar(title: const Text('PDF Viewer')),
+      body: SafeArea(child: SfPdfViewer.file(File(pdfPath))),
     );
   }
 }

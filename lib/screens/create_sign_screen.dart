@@ -107,6 +107,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
     'Roboto Slab', // Russian support
     'Playfair Display', // Global support
     'EB Garamond', // Global support
+    
     'Poppins', // Multi-language Sans
   ];
 
@@ -267,7 +268,8 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
     final String id = DateTime.now().millisecondsSinceEpoch.toString();
 
     try {
-      if (selectedTab == 0) {
+      final currentTab = _tabController.index;
+      if (currentTab == 0) {
         if (_signatureController.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -289,7 +291,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
           final sig = SignatureModel(id: id, type: 'draw', path: path);
           await signatureProvider.addSignature(sig);
         }
-      } else if (selectedTab == 1) {
+      } else if (currentTab == 1) {
         if (_uploadedImage == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -305,8 +307,9 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
 
         final sig = SignatureModel(id: id, type: 'image', path: file.path);
         await signatureProvider.addSignature(sig);
-      } else if (selectedTab == 2) {
-        if (_typedText.isEmpty) {
+      } else if (currentTab == 2) {
+        final textValue = _textController.text.trim();
+        if (textValue.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -318,11 +321,16 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
         }
 
         final filteredFonts = _getFilteredFonts();
+        int fontIndex = _selectedFontIndex;
+        if (fontIndex >= filteredFonts.length) {
+          fontIndex = 0;
+        }
+
         final sig = SignatureModel(
           id: id,
           type: 'text',
-          text: _typedText,
-          font: filteredFonts[_selectedFontIndex],
+          text: textValue,
+          font: filteredFonts[fontIndex],
           color: selectedColor.value,
         );
         await signatureProvider.addSignature(sig);
@@ -380,7 +388,19 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
       body: SafeArea(
         child: Column(
           children: [
-            _tabs(colors),
+            TabBar(
+              controller: _tabController,
+              labelColor: colors.primary,
+              unselectedLabelColor: colors.light,
+              indicatorColor: colors.primary,
+              dividerColor: Colors.transparent,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w500),
+              tabs: [
+                Tab(text: AppLocalizations.of(context)!.translate('draw')),
+                Tab(text: AppLocalizations.of(context)!.translate('upload')),
+                Tab(text: AppLocalizations.of(context)!.translate('presets')),
+              ],
+            ),
             // const SizedBox(height: 5),
             Expanded(
               child: TabBarView(
@@ -652,43 +672,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
     );
   }
 
-  Widget _tabs(AppColors colors) {
-    final tabs = [
-      AppLocalizations.of(context)!.translate('draw'),
-      AppLocalizations.of(context)!.translate('upload'),
-      AppLocalizations.of(context)!.translate('presets'),
-    ];
 
-    return Row(
-      children: List.generate(tabs.length, (index) {
-        final isSelected = selectedTab == index;
-
-        return Expanded(
-          child: GestureDetector(
-            onTap: () {
-              _tabController.animateTo(index);
-            },
-            child: Column(
-              children: [
-                Text(
-                  tabs[index],
-                  style: TextStyle(
-                    color: isSelected ? colors.primary : colors.light,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  height: 2,
-                  color: isSelected ? colors.primary : Colors.transparent,
-                ),
-              ],
-            ),
-          ),
-        );
-      }),
-    );
-  }
 
   Widget _controlsCard(AppColors colors) {
     return Container(

@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/theme_provider.dart';
 import '../providers/language_provider.dart';
 import '../l10n/app_localizations.dart';
+import 'terms_screen.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UPDATE THESE URLs before publishing
+// ─────────────────────────────────────────────────────────────────────────────
+const String _kPlayStoreUrl =
+    'https://play.google.com/store/apps/details?id=com.redpdf.sign_pdf_redpdf';
+const String _kDeveloperUrl =
+    'https://play.google.com/store/apps/developer?id=RedPDF';
+const String _kPrivacyPolicyUrl =
+    'https://redpdf.app/privacy-policy';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -53,6 +65,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open link.')),
+        );
+      }
+    }
+  }
+
+  void _openTerms() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const TermsScreen()),
+    );
+  }
+
   void _showLanguageDialog(
     BuildContext context,
     LanguageProvider languageProvider,
@@ -69,72 +99,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _languageOption("English", "en", languageProvider, color),
-                _languageOption(
-                  "हिन्दी (Hindi)",
-                  "hi",
-                  languageProvider,
-                  color,
-                ),
-                _languageOption(
-                  "Español (Spanish)",
-                  "es",
-                  languageProvider,
-                  color,
-                ),
-                _languageOption(
-                  "Português (Brasil)",
-                  "pt",
-                  languageProvider,
-                  color,
-                ),
-                _languageOption(
-                  "Bahasa Indonesia",
-                  "id",
-                  languageProvider,
-                  color,
-                ),
-                _languageOption(
-                  "Français (French)",
-                  "fr",
-                  languageProvider,
-                  color,
-                ),
-                _languageOption(
-                  "Deutsch (German)",
-                  "de",
-                  languageProvider,
-                  color,
-                ),
-                _languageOption(
-                  "العربية (Arabic)",
-                  "ar",
-                  languageProvider,
-                  color,
-                ),
-                _languageOption(
-                  "Русский (Russian)",
-                  "ru",
-                  languageProvider,
-                  color,
-                ),
-                _languageOption(
-                  "Türkçe (Turkish)",
-                  "tr",
-                  languageProvider,
-                  color,
-                ),
-                _languageOption(
-                  "Tiếng Việt (Vietnamese)",
-                  "vi",
-                  languageProvider,
-                  color,
-                ),
-                _languageOption(
-                  "日本語 (Japanese)",
-                  "ja",
-                  languageProvider,
-                  color,
-                ),
+                _languageOption("हिन्दी (Hindi)", "hi", languageProvider, color),
+                _languageOption("Español (Spanish)", "es", languageProvider, color),
+                _languageOption("Português (Brasil)", "pt", languageProvider, color),
+                _languageOption("Bahasa Indonesia", "id", languageProvider, color),
+                _languageOption("Français (French)", "fr", languageProvider, color),
+                _languageOption("Deutsch (German)", "de", languageProvider, color),
+                _languageOption("العربية (Arabic)", "ar", languageProvider, color),
+                _languageOption("Русский (Russian)", "ru", languageProvider, color),
+                _languageOption("Türkçe (Turkish)", "tr", languageProvider, color),
+                _languageOption("Tiếng Việt (Vietnamese)", "vi", languageProvider, color),
+                _languageOption("日本語 (Japanese)", "ja", languageProvider, color),
               ],
             ),
           ),
@@ -170,16 +145,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = isDark ? AppTheme.darkColors : AppTheme.lightColors;
+    final loc = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: color.bg,
       appBar: AppBar(
         title: Row(
           children: [
-            Text(
-              "A product by: ",
-              style: TextStyle(color: Colors.grey, fontSize: 13),
-            ),
+            Text("A product by: ",
+                style: TextStyle(color: Colors.grey, fontSize: 13)),
             Icon(Icons.picture_as_pdf, color: color.danger),
             const SizedBox(width: 8),
             Text(
@@ -200,12 +174,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 25),
 
               /// ⚙️ SETTINGS
-              _sectionTitle(
-                AppLocalizations.of(
-                  context,
-                )!.translate('settings').toUpperCase(),
-              ),
-
+              _sectionTitle(loc.translate('settings').toUpperCase()),
               _card(
                 color.card,
                 child: Column(
@@ -218,15 +187,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color.primary.withAlpha(200),
                       ),
                       activeThumbColor: color.text.withAlpha(200),
-
                       activeTrackColor: Colors.black54,
-
                       value: context.watch<ThemeProvider>().isDarkMode,
                       onChanged: (val) =>
                           context.read<ThemeProvider>().toggleDarkMode(val),
-                      title: Text(
-                        AppLocalizations.of(context)!.translate('theme_mode'),
-                      ),
+                      title: Text(loc.translate('theme_mode')),
                       secondary: Container(
                         height: 50,
                         width: 50,
@@ -239,10 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     _tile(
-                      AppLocalizations.of(
-                            context,
-                          )?.translate('storage_location') ??
-                          "Storage Location",
+                      loc.translate('storage_location'),
                       _saveLocation.split('/').last,
                       color,
                       Icons.storage,
@@ -252,16 +214,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Consumer<LanguageProvider>(
                       builder: (context, languageProvider, child) {
                         return _tile(
-                          AppLocalizations.of(context)!.translate('language'),
+                          loc.translate('language'),
                           languageProvider.locale.languageCode.toUpperCase(),
                           color,
                           Icons.language,
                           null,
                           () => _showLanguageDialog(
-                            context,
-                            languageProvider,
-                            color,
-                          ),
+                            context, languageProvider, color),
                         );
                       },
                     ),
@@ -271,53 +230,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 20),
 
-              /// 📄 SUPPORT
+              /// 📣 SUPPORT & INFO
               _sectionTitle(
-                "${AppLocalizations.of(context)!.translate('share_file')} & ${AppLocalizations.of(context)!.translate('privacy_policy')}",
+                '${loc.translate('share_file')} & ${loc.translate('privacy_policy')}',
               ),
-
               _card(
                 color.card,
                 child: Column(
                   children: [
-                    _featuredTile(color),
+                    // ⭐ Rate Us — featured card
+                    _featuredTile(color, loc),
+
+                    // 📱 Other Apps
                     _tile(
-                      AppLocalizations.of(context)!.translate('other_apps'),
+                      loc.translate('other_apps'),
                       null,
                       color,
                       Icons.apps,
                       Icons.open_in_new,
-                      null,
+                      () => _launchUrl(_kDeveloperUrl),
                     ),
+
+                    // 🔒 Privacy Policy
                     _tile(
-                      AppLocalizations.of(context)!.translate('privacy_policy'),
+                      loc.translate('privacy_policy'),
                       null,
                       color,
                       Icons.privacy_tip_outlined,
                       Icons.arrow_forward_ios,
-                      null,
+                      () => _launchUrl(_kPrivacyPolicyUrl),
                     ),
+
+                    // 📜 Terms & Conditions
                     _tile(
-                      AppLocalizations.of(context)!.translate('terms'),
+                      loc.translate('terms'),
                       null,
                       color,
                       Icons.gavel_outlined,
                       Icons.arrow_forward_ios,
-                      null,
+                      _openTerms,
                     ),
                   ],
                 ),
               ),
 
               const SizedBox(height: 20),
-
-              const SizedBox(height: 10),
-
               Text(
-                "${AppLocalizations.of(context)!.translate('version').toUpperCase()} 1.0.0 (1) • A Product by - REDPDF",
+                "${loc.translate('version').toUpperCase()} 1.0.0 (1) • A Product by - REDPDF",
                 style: TextStyle(fontSize: 12, color: color.text),
               ),
-
               const SizedBox(height: 20),
             ],
           ),
@@ -354,7 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         leading: Container(
           height: 50,
           width: 50,
-          padding: EdgeInsets.all(10),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             color: color.primary.withOpacity(0.1),
@@ -402,7 +363,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _featuredTile(AppColors color) {
+  Widget _featuredTile(AppColors color, AppLocalizations loc) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
       decoration: BoxDecoration(
@@ -424,9 +385,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () {
-            // TODO: Implement Rate Us functionality (open Play Store)
-          },
+          onTap: () => _launchUrl(_kPlayStoreUrl),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -448,16 +407,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "Rate Us",
-                        style: TextStyle(
+                      Text(
+                        loc.translate('rate_us'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        "Your feedback helps us improve!",
+                        loc.translate('feedback'),
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.9),
                           fontSize: 13,
