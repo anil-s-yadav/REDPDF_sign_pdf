@@ -1,5 +1,5 @@
-import java.util.Properties
 import java.io.FileInputStream
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -9,15 +9,16 @@ plugins {
 }
 
 // Load keystore properties
-val keystorePropertiesFile = rootProject("key.properties")
-val keystoreProperties = Properties().apply {
-    if (keystorePropertiesFile.exists()) {
-        load(FileInputStream(keystorePropertiesFile))
-    }
-}
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties =
+        Properties().apply {
+            if (keystorePropertiesFile.exists()) {
+                load(FileInputStream(keystorePropertiesFile as java.io.File))
+            }
+        }
 
 android {
-    namespace = "com.lagendarysoftware.sign_pdf_scan_pdf"
+    namespace = "com.legendarysoftware.redpdf.signpdf_scanpdf"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -26,36 +27,35 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
+    kotlinOptions { jvmTarget = JavaVersion.VERSION_17.toString() }
 
     signingConfigs {
         create("release") {
-            keyAlias     = keystoreProperties["keyAlias"]     as String
-            keyPassword  = keystoreProperties["keyPassword"]  as String
-            storeFile    = file(keystoreProperties["storeFile"] as String)
-            storePassword= keystoreProperties["storePassword"] as String
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
         }
     }
 
     defaultConfig {
-        applicationId = "com.lagendarysoftware.sign_pdf_scan_pdf"
-        minSdk        = flutter.minSdkVersion
-        targetSdk     = flutter.targetSdkVersion
-        versionCode   = flutter.versionCode
-        versionName   = flutter.versionName
+        applicationId = "com.legendarysoftware.redpdf.signpdf_scanpdf"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
     }
 
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled   = false
+            isMinifyEnabled = false
             isShrinkResources = false
         }
     }
 }
 
+flutter { source = "../.." }
 flutter {
     source = "../.."
 }

@@ -1,4 +1,4 @@
-package com.lagendarysoftware.sign_pdf_scan_pdf
+package com.legendarysoftware.redpdf.signpdf_scanpdf
 
 import io.flutter.embedding.android.FlutterActivity
 
