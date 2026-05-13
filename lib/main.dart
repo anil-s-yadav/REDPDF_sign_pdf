@@ -94,7 +94,7 @@ class MainApp extends StatelessWidget {
             if (settings.name == '/signpdf') {
               final String? pdfPath = settings.arguments as String?;
               return MaterialPageRoute(
-                // we'll update SignPdfScreen constructor to take pdfPath if needed, but the original might just read it differently. 
+                // we'll update SignPdfScreen constructor to take pdfPath if needed, but the original might just read it differently.
                 // Let's pass it anyway or remove from here if SignPdf doesn't accept. We'll update SignPdfScreen.
                 builder: (context) => const SignPdfScreen(),
                 settings: settings,

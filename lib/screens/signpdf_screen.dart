@@ -8,7 +8,6 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:media_scanner/media_scanner.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
 import 'package:sign_pdf_redpdf/providers/signature_provider.dart';
@@ -197,8 +196,7 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
     // For text signatures, render to PNG NOW while the Google Font is guaranteed
     // to already be registered in Flutter's font engine (the preview just showed it).
     if (sig.type == 'text' && sig.text != null) {
-      final Color color =
-          sig.color != null ? Color(sig.color!) : Colors.black;
+      final Color color = sig.color != null ? Color(sig.color!) : Colors.black;
       final Uint8List? bytes = await _renderTextToImageBytes(
         sig.text!,
         sig.font,
@@ -237,10 +235,7 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
     double fontSize = 80,
   }) async {
     final recorder = ui.PictureRecorder();
-    final canvas = Canvas(
-      recorder,
-      Rect.fromLTWH(0, 0, width, height),
-    );
+    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width, height));
 
     // Transparent background
     canvas.drawRect(
@@ -419,11 +414,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
     String dirPath =
         customPath ?? '/storage/emulated/0/Download/signpdf_refpdf';
 
-    if (Platform.isAndroid) {
-      await Permission.storage.request();
-      await Permission.manageExternalStorage.request();
-    }
-
     final dir = Directory(dirPath);
     if (!await dir.exists()) {
       try {
@@ -451,10 +441,11 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
           final PdfPage page = document.pages[instance.pageIndex];
           final sig = instance.signature;
 
-          // SfPdfViewer fits the page to the screen width, but applies an 8px margin 
+          // SfPdfViewer fits the page to the screen width, but applies an 8px margin
           // on the left, right, top, and bottom, plus an 8px gap between pages.
           final double screenWidth = MediaQuery.of(context).size.width;
-          final double pageViewWidth = screenWidth - 16.0; // 8px left and 8px right
+          final double pageViewWidth =
+              screenWidth - 16.0; // 8px left and 8px right
           final double pw = page.size.width;
           final double pdfScale = pw / pageViewWidth;
 
@@ -468,7 +459,7 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
 
           // docPosition is the exact absolute coordinate in the continuous scroll view at zoom=1.
           // Subtract the top margin offset and left margin offset to get local page pixels.
-          final double localDocX = instance.docPosition.dx - 8.0; 
+          final double localDocX = instance.docPosition.dx - 8.0;
           final double localDocY = instance.docPosition.dy - pageTopDocY;
 
           // Convert logical pixels back to PDF points.
@@ -482,7 +473,7 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
             final File imgFile = File(sig.path!);
             if (await imgFile.exists()) {
               final PdfBitmap image = PdfBitmap(await imgFile.readAsBytes());
-              
+
               // Simulate BoxFit.contain and Center alignment from the UI
               final double imgWidth = image.width.toDouble();
               final double imgHeight = image.height.toDouble();
@@ -514,11 +505,14 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
             // Prefer the cached PNG rendered at placement time (exact Google Font)
             if (instance.cachedTextImagePath != null &&
                 File(instance.cachedTextImagePath!).existsSync()) {
-              imgBytes = await File(instance.cachedTextImagePath!).readAsBytes();
+              imgBytes = await File(
+                instance.cachedTextImagePath!,
+              ).readAsBytes();
             } else {
               // Fallback: re-render (font should be loaded since user already saw it)
-              final Color textColor =
-                  sig.color != null ? Color(sig.color!) : Colors.black;
+              final Color textColor = sig.color != null
+                  ? Color(sig.color!)
+                  : Colors.black;
               imgBytes = await _renderTextToImageBytes(
                 sig.text!,
                 sig.font,
@@ -735,10 +729,12 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                                           // Use horizontal drag to resize
                                           instance.scale +=
                                               details.delta.dx / 100;
-                                          if (instance.scale < 0.2)
+                                          if (instance.scale < 0.2) {
                                             instance.scale = 0.2;
-                                          if (instance.scale > 5.0)
+                                          }
+                                          if (instance.scale > 5.0) {
                                             instance.scale = 5.0;
+                                          }
                                         });
                                       },
                                       child: Container(
@@ -799,10 +795,7 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
               color: colors.card,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 5,
-                ),
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5),
               ],
             ),
             child: Row(
@@ -894,7 +887,11 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               AppLocalizations.of(

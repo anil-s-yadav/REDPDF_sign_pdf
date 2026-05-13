@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 class SignatureModel {
   final String id;
   final String type; // 'draw', 'image', 'text'

@@ -6,11 +6,9 @@ import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:media_scanner/media_scanner.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
 import 'package:sign_pdf_redpdf/providers/pdf_provider.dart';
 import 'package:sign_pdf_redpdf/models/pdf_document_model.dart';
-import 'package:image/image.dart' as img;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../l10n/app_localizations.dart';
@@ -76,12 +74,8 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
 
         final prefs = await SharedPreferences.getInstance();
         String? customPath = prefs.getString('save_location');
-        String dirPath = customPath ?? '/storage/emulated/0/Download/signpdf_refpdf';
-
-        if (Platform.isAndroid) {
-          await Permission.storage.request();
-          await Permission.manageExternalStorage.request();
-        }
+        String dirPath =
+            customPath ?? '/storage/emulated/0/Download/signpdf_refpdf';
 
         final dir = Directory(dirPath);
         if (!await dir.exists()) {
@@ -93,7 +87,8 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
           }
         }
 
-        final newPath = '$dirPath/scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final newPath =
+            '$dirPath/scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
         final file = File(newPath);
         await file.writeAsBytes(await pdf.save());
 
@@ -120,7 +115,9 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
     } catch (e) {
       if (mounted) {
         if (Navigator.canPop(context)) Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -143,7 +140,10 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                   _scannedImagePaths = [];
                 });
               },
-              child: Text(AppLocalizations.of(context)!.translate('clear'), style: TextStyle(color: colors.primary)),
+              child: Text(
+                AppLocalizations.of(context)!.translate('clear'),
+                style: TextStyle(color: colors.primary),
+              ),
             ),
         ],
       ),
@@ -154,31 +154,44 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (_scannedImagePaths.isEmpty) ...[
-                 Center(
-                   child: Column(
-                     mainAxisAlignment: MainAxisAlignment.center,
-                     children: [
-                       const SizedBox(height: 100),
-                       Icon(Icons.document_scanner, size: 80, color: colors.light),
-                       const SizedBox(height: 16),
-                       Text(AppLocalizations.of(context)!.translate('ready_to_scan'), style: TextStyle(fontSize: 18, color: colors.text)),
-                       const SizedBox(height: 32),
-                       SizedBox(
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 100),
+                      Icon(
+                        Icons.document_scanner,
+                        size: 80,
+                        color: colors.light,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        AppLocalizations.of(
+                          context,
+                        )!.translate('ready_to_scan'),
+                        style: TextStyle(fontSize: 18, color: colors.text),
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton.icon(
                           onPressed: _startScan,
                           icon: const Icon(Icons.camera_alt),
-                          label: Text(AppLocalizations.of(context)!.translate('start_scanner')),
+                          label: Text(
+                            AppLocalizations.of(
+                              context,
+                            )!.translate('start_scanner'),
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: colors.primary,
                             foregroundColor: Colors.white,
                           ),
                         ),
                       ),
-                     ],
-                   )
-                 )
+                    ],
+                  ),
+                ),
               ] else ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -188,12 +201,18 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                       style: TextStyle(color: colors.light),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: colors.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text("HQ Scan", style: TextStyle(color: colors.primary)),
+                      child: Text(
+                        "HQ Scan",
+                        style: TextStyle(color: colors.primary),
+                      ),
                     ),
                   ],
                 ),
@@ -201,11 +220,12 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                 Expanded(
                   child: GridView.builder(
                     itemCount: _scannedImagePaths.length + 1,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                        ),
                     itemBuilder: (context, index) {
                       if (index == _scannedImagePaths.length) {
                         return GestureDetector(
@@ -213,7 +233,11 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                           child: _addCard(colors),
                         );
                       }
-                      return _imageCard(colors, _scannedImagePaths[index], "Page ${index + 1}");
+                      return _imageCard(
+                        colors,
+                        _scannedImagePaths[index],
+                        "Page ${index + 1}",
+                      );
                     },
                   ),
                 ),
@@ -224,10 +248,16 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          Navigator.pushNamed(context, '/viewer', arguments: _scannedPdfPath);
+                          Navigator.pushNamed(
+                            context,
+                            '/viewer',
+                            arguments: _scannedPdfPath,
+                          );
                         },
                         icon: const Icon(Icons.picture_as_pdf),
-                        label: Text(AppLocalizations.of(context)!.translate('preview')),
+                        label: Text(
+                          AppLocalizations.of(context)!.translate('preview'),
+                        ),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           backgroundColor: colors.card,
@@ -243,7 +273,9 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                           Share.shareXFiles([XFile(_scannedPdfPath!)]);
                         },
                         icon: const Icon(Icons.share),
-                        label: Text(AppLocalizations.of(context)!.translate('share')),
+                        label: Text(
+                          AppLocalizations.of(context)!.translate('share'),
+                        ),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           backgroundColor: colors.card,
@@ -256,10 +288,16 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          Navigator.pushNamed(context, '/signpdf', arguments: _scannedPdfPath);
+                          Navigator.pushNamed(
+                            context,
+                            '/signpdf',
+                            arguments: _scannedPdfPath,
+                          );
                         },
                         icon: const Icon(Icons.edit_document),
-                        label: Text(AppLocalizations.of(context)!.translate('sign_pdf')),
+                        label: Text(
+                          AppLocalizations.of(context)!.translate('sign_pdf'),
+                        ),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           backgroundColor: colors.primary,
@@ -288,13 +326,22 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
         children: [
           Expanded(
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.file(File(path), fit: BoxFit.cover, width: double.infinity),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
+              child: Image.file(
+                File(path),
+                fit: BoxFit.cover,
+                width: double.infinity,
+              ),
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(8),
-            child: Text(name, style: TextStyle(fontSize: 12, color: colors.text)),
+            child: Text(
+              name,
+              style: TextStyle(fontSize: 12, color: colors.text),
+            ),
           ),
         ],
       ),
@@ -314,11 +361,13 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
           children: [
             Icon(Icons.camera_alt, color: colors.primary),
             const SizedBox(height: 6),
-            Text(AppLocalizations.of(context)!.translate('add_pages'), style: TextStyle(color: colors.primary)),
+            Text(
+              AppLocalizations.of(context)!.translate('add_pages'),
+              style: TextStyle(color: colors.primary),
+            ),
           ],
         ),
       ),
     );
   }
 }
-

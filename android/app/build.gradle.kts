@@ -1,5 +1,4 @@
 import java.util.Properties
-import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
@@ -9,10 +8,10 @@ plugins {
 }
 
 // Load keystore properties
-val keystorePropertiesFile = rootProject("key.properties")
+val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
-        load(FileInputStream(keystorePropertiesFile))
+        load(keystorePropertiesFile.inputStream())
     }
 }
 
@@ -26,8 +25,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+    kotlin {
+        jvmToolchain(17)
     }
 
     signingConfigs {

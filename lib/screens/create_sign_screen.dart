@@ -107,7 +107,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
     'Roboto Slab', // Russian support
     'Playfair Display', // Global support
     'EB Garamond', // Global support
-    
+
     'Poppins', // Multi-language Sans
   ];
 
@@ -160,26 +160,30 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
               font == 'Cairo' ||
               font == 'Amiri' ||
               font == 'Almarai' ||
-              font == 'Tajawal'))
+              font == 'Tajawal')) {
         isMatch = true;
+      }
       if (hasDevanagari &&
           (font.contains('Devanagari') ||
               font == 'Mukta' ||
               font == 'Hind' ||
-              font == 'Tiro Devanagari Hindi'))
+              font == 'Tiro Devanagari Hindi')) {
         isMatch = true;
+      }
       if (hasJapanese &&
           (font.contains('JP') ||
               font == 'Sawarabi Mincho' ||
-              font == 'Noto Sans JP'))
+              font == 'Noto Sans JP')) {
         isMatch = true;
+      }
       if (hasRussian &&
           (font == 'Bad Script' ||
               font == 'Roboto Slab' ||
               font == 'Lora' ||
               font == 'Montserrat' ||
-              font == 'EB Garamond'))
+              font == 'EB Garamond')) {
         isMatch = true;
+      }
 
       // Latin-based (English, Spanish, etc) - most scripts work
       if (!hasArabic && !hasDevanagari && !hasJapanese && !hasRussian) {
@@ -190,10 +194,11 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
         }
       }
 
-      if (isMatch)
+      if (isMatch) {
         prioritized.add(font);
-      else
+      } else {
         others.add(font);
+      }
     }
 
     // Always keep Noto Sans at top as universal fallback
@@ -412,65 +417,65 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                     child: Column(
                       children: [
                         Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            AppLocalizations.of(
-                              context,
-                            )!.translate('draw').toUpperCase(),
-                            style: TextStyle(
-                              color: colors.light,
-                              letterSpacing: 1,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              AppLocalizations.of(
+                                context,
+                              )!.translate('draw').toUpperCase(),
+                              style: TextStyle(
+                                color: colors.light,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _signatureController.undo(),
+                                  child: _actionText(
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.translate('undo'),
+                                    Icons.undo,
+                                    colors,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                GestureDetector(
+                                  onTap: () => _signatureController.clear(),
+                                  child: _actionText(
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.translate('clear'),
+                                    Icons.delete,
+                                    colors,
+                                    isDanger: true,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: colors.primary.withOpacity(0.4),
                             ),
                           ),
-                          Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () => _signatureController.undo(),
-                                child: _actionText(
-                                  AppLocalizations.of(
-                                    context,
-                                  )!.translate('undo'),
-                                  Icons.undo,
-                                  colors,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              GestureDetector(
-                                onTap: () => _signatureController.clear(),
-                                child: _actionText(
-                                  AppLocalizations.of(
-                                    context,
-                                  )!.translate('clear'),
-                                  Icons.delete,
-                                  colors,
-                                  isDanger: true,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: colors.primary.withOpacity(0.4),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Signature(
+                              controller: _signatureController,
+                              height: 200,
+                              backgroundColor: Colors.transparent,
+                            ),
                           ),
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Signature(
-                            controller: _signatureController,
-                            height: 200,
-                            backgroundColor: Colors.transparent,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      _controlsCard(colors),
+                        const SizedBox(height: 20),
+                        _controlsCard(colors),
                       ],
                     ),
                   ),
@@ -479,76 +484,81 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                     child: Column(
                       children: [
                         Text(
-                        AppLocalizations.of(context)!
-                            .translate(
-                              'Click upload to select another signature.\nSelect a image with sign and transparent background!',
-                            )
-                            .toUpperCase(),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: colors.light, fontSize: 12),
-                      ),
-                      const SizedBox(height: 12),
-                      GestureDetector(
-                        onTap: _pickImage,
-                        child: Container(
-                          height: 200,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: colors.card,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: colors.primary.withOpacity(0.4),
-                            ),
-                          ),
-                          child: _isProcessing
-                              ? const Center(child: CircularProgressIndicator())
-                              : _uploadedImage != null
-                              ? Image.file(_uploadedImage!, fit: BoxFit.contain)
-                              : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.upload_file,
-                                      size: 40,
-                                      color: colors.light,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      AppLocalizations.of(
-                                        context,
-                                      )!.translate('upload'),
-                                      style: TextStyle(color: colors.light),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton.icon(
-                        icon: _isProcessing
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
+                          AppLocalizations.of(context)!
+                              .translate(
+                                'Click upload to select another signature.\nSelect a image with sign and transparent background!',
                               )
-                            : const Icon(Icons.image),
-                        label: Text(
-                          _isProcessing
-                              ? "Processing..."
-                              : AppLocalizations.of(
-                                  context,
-                                )!.translate('upload'),
+                              .toUpperCase(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: colors.light, fontSize: 12),
                         ),
-                        onPressed: _isProcessing ? null : _pickImage,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colors.primary,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(double.infinity, 50),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            height: 200,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: colors.card,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: colors.primary.withOpacity(0.4),
+                              ),
+                            ),
+                            child: _isProcessing
+                                ? const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
+                                : _uploadedImage != null
+                                ? Image.file(
+                                    _uploadedImage!,
+                                    fit: BoxFit.contain,
+                                  )
+                                : Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.upload_file,
+                                        size: 40,
+                                        color: colors.light,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        AppLocalizations.of(
+                                          context,
+                                        )!.translate('upload'),
+                                        style: TextStyle(color: colors.light),
+                                      ),
+                                    ],
+                                  ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          icon: _isProcessing
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.image),
+                          label: Text(
+                            _isProcessing
+                                ? "Processing..."
+                                : AppLocalizations.of(
+                                    context,
+                                  )!.translate('upload'),
+                          ),
+                          onPressed: _isProcessing ? null : _pickImage,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colors.primary,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(double.infinity, 50),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -557,122 +567,126 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                     child: Column(
                       children: [
                         TextField(
-                        controller: _textController,
-                        style: TextStyle(color: colors.text),
-                        decoration: InputDecoration(
-                          hintText: AppLocalizations.of(
-                            context,
-                          )!.translate('enter_name'),
-                          hintStyle: TextStyle(color: colors.light),
-                          filled: true,
-                          fillColor: colors.card,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide.none,
+                          controller: _textController,
+                          style: TextStyle(color: colors.text),
+                          decoration: InputDecoration(
+                            hintText: AppLocalizations.of(
+                              context,
+                            )!.translate('enter_name'),
+                            hintStyle: TextStyle(color: colors.light),
+                            filled: true,
+                            fillColor: colors.card,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          onChanged: (val) {
+                            setState(() {
+                              _typedText = val;
+                            });
+                          },
+                        ),
+
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Row(
+                            children: _signatureColors
+                                .map((c) => _colorCircle(c))
+                                .toList(),
                           ),
                         ),
-                        onChanged: (val) {
-                          setState(() {
-                            _typedText = val;
-                          });
-                        },
-                      ),
 
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Row(
-                          children: _signatureColors
-                              .map((c) => _colorCircle(c))
-                              .toList(),
-                        ),
-                      ),
+                        ...[
+                          Builder(
+                            builder: (context) {
+                              final filteredFonts = _getFilteredFonts();
+                              if (_typedText.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
 
-                      ...[
-                        Builder(
-                          builder: (context) {
-                            final filteredFonts = _getFilteredFonts();
-                            if (_typedText.isEmpty)
-                              return const SizedBox.shrink();
+                              return SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.7,
+                                child: ListView.builder(
+                                  itemCount: filteredFonts.length,
+                                  itemBuilder: (context, index) {
+                                    final fontName = filteredFonts[index];
+                                    final isSelected =
+                                        _selectedFontIndex == index;
 
-                            return SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.7,
-                              child: ListView.builder(
-                                itemCount: filteredFonts.length,
-                                itemBuilder: (context, index) {
-                                  final fontName = filteredFonts[index];
-                                  final isSelected =
-                                      _selectedFontIndex == index;
-
-                                  // Safe font rendering for preview
-                                  Widget textWidget;
-                                  try {
-                                    textWidget = Text(
-                                      _typedText,
-                                      style: GoogleFonts.getFont(
-                                        fontName,
-                                        textStyle: TextStyle(
+                                    // Safe font rendering for preview
+                                    Widget textWidget;
+                                    try {
+                                      textWidget = Text(
+                                        _typedText,
+                                        style: GoogleFonts.getFont(
+                                          fontName,
+                                          textStyle: TextStyle(
+                                            fontSize: 30,
+                                            color: isSelected
+                                                ? colors.primary
+                                                : selectedColor,
+                                          ),
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      textWidget = Text(
+                                        _typedText,
+                                        style: TextStyle(
                                           fontSize: 30,
                                           color: isSelected
                                               ? colors.primary
                                               : selectedColor,
                                         ),
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    textWidget = Text(
-                                      _typedText,
-                                      style: TextStyle(
-                                        fontSize: 30,
-                                        color: isSelected
-                                            ? colors.primary
-                                            : selectedColor,
-                                      ),
-                                    );
-                                  }
+                                      );
+                                    }
 
-                                  return GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _selectedFontIndex = index;
-                                      });
-                                    },
-                                    child: Container(
-                                      margin: const EdgeInsets.only(bottom: 20),
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? colors.primary.withOpacity(0.1)
-                                            : Colors.white,
-                                        borderRadius: BorderRadius.circular(15),
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? colors.primary
-                                              : colors.border,
+                                    return GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedFontIndex = index;
+                                        });
+                                      },
+                                      child: Container(
+                                        margin: const EdgeInsets.only(
+                                          bottom: 20,
                                         ),
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? colors.primary.withOpacity(0.1)
+                                              : Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            15,
+                                          ),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? colors.primary
+                                                : colors.border,
+                                          ),
+                                        ),
+                                        child: Center(child: textWidget),
                                       ),
-                                      child: Center(child: textWidget),
-                                    ),
-                                  );
-                                },
-                              ),
-                            );
-                          },
-                        ),
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
             _bottomButtons(colors),
           ],
         ),
       ),
     );
   }
-
-
 
   Widget _controlsCard(AppColors colors) {
     return Container(

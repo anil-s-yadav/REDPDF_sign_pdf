@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:provider/provider.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
-import 'package:sign_pdf_redpdf/providers/theme_provider.dart';
 import '../l10n/app_localizations.dart';
 
 class HomeScreen extends StatelessWidget {
