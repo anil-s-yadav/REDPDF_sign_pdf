@@ -16,7 +16,7 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.lagendarysoftware.sign_pdf_scan_pdf"
+    namespace = "com.legendarysoftware.redpdf.signpdf_scanpdf"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -31,30 +31,31 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias     = keystoreProperties["keyAlias"]     as String
-            keyPassword  = keystoreProperties["keyPassword"]  as String
-            storeFile    = file(keystoreProperties["storeFile"] as String)
-            storePassword= keystoreProperties["storePassword"] as String
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
         }
     }
 
     defaultConfig {
-        applicationId = "com.lagendarysoftware.sign_pdf_scan_pdf"
-        minSdk        = flutter.minSdkVersion
-        targetSdk     = flutter.targetSdkVersion
-        versionCode   = flutter.versionCode
-        versionName   = flutter.versionName
+        applicationId = "com.legendarysoftware.redpdf.signpdf_scanpdf"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
     }
 
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled   = false
+            isMinifyEnabled = false
             isShrinkResources = false
         }
     }
 }
 
+flutter { source = "../.." }
 flutter {
     source = "../.."
 }
