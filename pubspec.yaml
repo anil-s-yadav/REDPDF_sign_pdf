@@ -54,7 +54,6 @@ dependencies:
   printing: ^5.13.3 # For PDF to image if needed
   media_scanner: ^2.2.1
   url_launcher: ^6.3.2
-  change_app_package_name: ^1.5.0
 
 dev_dependencies:
   flutter_test:
