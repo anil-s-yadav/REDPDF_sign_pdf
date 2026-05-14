@@ -1,7 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
@@ -12,6 +12,7 @@ import 'package:sign_pdf_redpdf/models/pdf_document_model.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../l10n/app_localizations.dart';
+import '../utils/download_helper.dart';
 
 class ScanPdfScreen extends StatefulWidget {
   const ScanPdfScreen({super.key});
@@ -73,24 +74,24 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
         }
 
         final prefs = await SharedPreferences.getInstance();
-        String? customPath = prefs.getString('save_location');
-        String dirPath =
-            customPath ?? '/storage/emulated/0/Download/signpdf_refpdf';
+        final customPath = prefs.getString('save_location');
+        final fileName = 'scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final pdfBytes = await pdf.save();
 
-        final dir = Directory(dirPath);
-        if (!await dir.exists()) {
-          try {
-            await dir.create(recursive: true);
-          } catch (e) {
-            final fallback = await getApplicationDocumentsDirectory();
-            dirPath = fallback.path;
-          }
+        String newPath;
+        if (customPath != null) {
+          // User selected custom path — write directly
+          final dir = Directory(customPath);
+          if (!await dir.exists()) await dir.create(recursive: true);
+          newPath = '$customPath/$fileName';
+          await File(newPath).writeAsBytes(pdfBytes, flush: true);
+        } else {
+          // Default: save to Downloads/RedPdf_sign via MediaStore (no permissions needed)
+          newPath = await DownloadHelper.savePdfToDownloads(
+            bytes: Uint8List.fromList(pdfBytes),
+            fileName: fileName,
+          );
         }
-
-        final newPath =
-            '$dirPath/scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
-        final file = File(newPath);
-        await file.writeAsBytes(await pdf.save());
 
         try {
           await MediaScanner.loadMedia(path: newPath);
@@ -101,7 +102,7 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           title: "Scanned_${DateTime.now().millisecondsSinceEpoch}.pdf",
           path: newPath,
-          sizeInBytes: await file.length(),
+          sizeInBytes: pdfBytes.length,
         );
 
         await pdfProvider.addSignedDocument(doc);

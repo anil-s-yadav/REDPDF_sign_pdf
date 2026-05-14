@@ -39,62 +39,7 @@ class _NavigationPageState extends State<NavigationPage>
       });
     }
   }
-  // bool _isCheckingPermission = false;
 
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   WidgetsBinding.instance.addObserver(this);
-  //   WidgetsBinding.instance.addPostFrameCallback((_) {
-  //     _checkPermissions();
-  //   });
-  // }
-
-  // @override
-  // void dispose() {
-  //   WidgetsBinding.instance.removeObserver(this);
-  //   super.dispose();
-  // }
-
-  // @override
-  // void didChangeAppLifecycleState(AppLifecycleState state) {
-  //   if (state == AppLifecycleState.resumed) {
-  //     _checkPermissions();
-  //   }
-  // }
-
-  // Future<void> _checkPermissions() async {
-  //   if (_isCheckingPermission) return;
-  //   _isCheckingPermission = true;
-
-  //   try {
-  //     if (Platform.isAndroid) {
-  //       bool manageGranted = await Permission.manageExternalStorage.isGranted;
-  //       bool storageGranted = await Permission.storage.isGranted;
-
-  //       if (!manageGranted && !storageGranted) {
-  //         // This shows an in-app popup on Android 10 and below
-  //         await Permission.storage.request();
-
-  //         // This explicitly redirects to the 'All files access' page on Android 11+
-  //         await Permission.manageExternalStorage.request();
-  //       }
-
-  //       if (await Permission.manageExternalStorage.isGranted ||
-  //           await Permission.storage.isGranted) {
-  //         if (mounted) {
-  //           context.read<PdfProvider>().scanAllPdfs();
-  //         }
-  //       }
-  //     }
-  //   } finally {
-  //     Future.delayed(const Duration(seconds: 1), () {
-  //       if (mounted) {
-  //         _isCheckingPermission = false;
-  //       }
-  //     });
-  //   }
-  // }
 
   void _onItemTapped(int index) {
     setState(() {

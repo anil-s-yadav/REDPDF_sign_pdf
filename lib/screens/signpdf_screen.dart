@@ -16,6 +16,7 @@ import 'package:sign_pdf_redpdf/models/signature_model.dart';
 import 'package:sign_pdf_redpdf/models/pdf_document_model.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/download_helper.dart';
 
 class SignPdfScreen extends StatefulWidget {
   const SignPdfScreen({super.key});
@@ -409,24 +410,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
   Future<void> _saveSignedPdf() async {
     if (_pdfPath == null) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    String? customPath = prefs.getString('save_location');
-    String dirPath =
-        customPath ?? '/storage/emulated/0/Download/signpdf_refpdf';
-
-    final dir = Directory(dirPath);
-    if (!await dir.exists()) {
-      try {
-        await dir.create(recursive: true);
-      } catch (e) {
-        final fallback = await getApplicationDocumentsDirectory();
-        dirPath = fallback.path;
-      }
-    }
-
-    final newPath =
-        '$dirPath/signed_${DateTime.now().millisecondsSinceEpoch}.pdf';
-
     try {
       final File original = File(_pdfPath!);
 
@@ -536,7 +519,27 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
 
       final List<int> bytes = document.saveSync();
       document.dispose();
-      await File(newPath).writeAsBytes(bytes, flush: true);
+
+      final fileName = 'signed_${DateTime.now().millisecondsSinceEpoch}.pdf';
+
+      // Check if user has a custom save location
+      final prefs = await SharedPreferences.getInstance();
+      final customPath = prefs.getString('save_location');
+
+      String newPath;
+      if (customPath != null) {
+        // User selected custom path — write directly
+        final dir = Directory(customPath);
+        if (!await dir.exists()) await dir.create(recursive: true);
+        newPath = '$customPath/$fileName';
+        await File(newPath).writeAsBytes(bytes, flush: true);
+      } else {
+        // Default: save to Downloads/RedPdf_sign via MediaStore (no permissions needed)
+        newPath = await DownloadHelper.savePdfToDownloads(
+          bytes: Uint8List.fromList(bytes),
+          fileName: fileName,
+        );
+      }
 
       // Refresh android indexing
       try {
@@ -550,7 +553,7 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: "Signed_${original.uri.pathSegments.last}",
         path: newPath,
-        sizeInBytes: await File(newPath).length(),
+        sizeInBytes: File(newPath).existsSync() ? await File(newPath).length() : bytes.length,
       );
 
       await pdfProvider.addSignedDocument(doc);
