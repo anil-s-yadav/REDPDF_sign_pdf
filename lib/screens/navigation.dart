@@ -4,6 +4,7 @@ import 'package:sign_pdf_redpdf/screens/profilescreen.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../services/update_review_service.dart';
 
 class NavigationPage extends StatefulWidget {
   const NavigationPage({super.key});
@@ -23,6 +24,13 @@ class _NavigationPageState extends State<NavigationPage>
     // Pre-initialize selected index if any arguments exist
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkArguments();
+
+      // Delay update/review checks so the UI settles first.
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        UpdateReviewService.instance.checkForUpdate();
+        UpdateReviewService.instance.maybePromptReview();
+      });
     });
   }
 

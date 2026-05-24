@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/theme_provider.dart';
+import '../services/update_review_service.dart';
 import '../providers/language_provider.dart';
 import '../l10n/app_localizations.dart';
 import 'terms_screen.dart';
@@ -17,8 +18,7 @@ const String _kPlayStoreUrl =
     'https://play.google.com/store/apps/details?id=com.redpdf.sign_pdf_redpdf';
 const String _kDeveloperUrl =
     'https://play.google.com/store/apps/developer?id=RedPDF';
-const String _kPrivacyPolicyUrl =
-    'https://redpdf.app/privacy-policy';
+const String _kPrivacyPolicyUrl = 'https://redpdf.app/privacy-policy';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -39,7 +39,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadSaveLocation() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _saveLocation = prefs.getString('save_location') ??
+      _saveLocation =
+          prefs.getString('save_location') ??
           '/storage/emulated/0/Download/RedPdf_sign';
     });
   }
@@ -68,9 +69,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open link.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not open link.')));
       }
     }
   }
@@ -98,17 +99,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _languageOption("English", "en", languageProvider, color),
-                _languageOption("हिन्दी (Hindi)", "hi", languageProvider, color),
-                _languageOption("Español (Spanish)", "es", languageProvider, color),
-                _languageOption("Português (Brasil)", "pt", languageProvider, color),
-                _languageOption("Bahasa Indonesia", "id", languageProvider, color),
-                _languageOption("Français (French)", "fr", languageProvider, color),
-                _languageOption("Deutsch (German)", "de", languageProvider, color),
-                _languageOption("العربية (Arabic)", "ar", languageProvider, color),
-                _languageOption("Русский (Russian)", "ru", languageProvider, color),
-                _languageOption("Türkçe (Turkish)", "tr", languageProvider, color),
-                _languageOption("Tiếng Việt (Vietnamese)", "vi", languageProvider, color),
-                _languageOption("日本語 (Japanese)", "ja", languageProvider, color),
+                _languageOption(
+                  "हिन्दी (Hindi)",
+                  "hi",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Español (Spanish)",
+                  "es",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Português (Brasil)",
+                  "pt",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Bahasa Indonesia",
+                  "id",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Français (French)",
+                  "fr",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Deutsch (German)",
+                  "de",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "العربية (Arabic)",
+                  "ar",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Русский (Russian)",
+                  "ru",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Türkçe (Turkish)",
+                  "tr",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "Tiếng Việt (Vietnamese)",
+                  "vi",
+                  languageProvider,
+                  color,
+                ),
+                _languageOption(
+                  "日本語 (Japanese)",
+                  "ja",
+                  languageProvider,
+                  color,
+                ),
               ],
             ),
           ),
@@ -151,8 +207,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Text("A product by: ",
-                style: TextStyle(color: Colors.grey, fontSize: 13)),
+            Text(
+              "A product by: ",
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+            ),
             Icon(Icons.picture_as_pdf, color: color.danger),
             const SizedBox(width: 8),
             Text(
@@ -219,7 +277,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Icons.language,
                           null,
                           () => _showLanguageDialog(
-                            context, languageProvider, color),
+                            context,
+                            languageProvider,
+                            color,
+                          ),
                         );
                       },
                     ),
@@ -275,7 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 20),
               Text(
-                "${loc.translate('version').toUpperCase()} 1.0.0 (1) • A Product by - REDPDF",
+                "${loc.translate('version').toUpperCase()} 1.0.2 (2) • A Product by - REDPDF",
                 style: TextStyle(fontSize: 12, color: color.text),
               ),
               const SizedBox(height: 20),
@@ -384,7 +445,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => _launchUrl(_kPlayStoreUrl),
+          onTap: () => UpdateReviewService.instance.requestReview(),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
