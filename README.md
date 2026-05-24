@@ -1,17 +1,11 @@
 # sign_pdf_redpdf
 
-A new Flutter project.
+When you build with flutter build appbundle --obfuscate --split-debug-info=build/symbols, the build will produce:
 
-## Getting Started
+A smaller AAB (R8 strips unused code & resources)
+A mapping.txt at android/app/build/outputs/mapping/release/mapping.txt — upload this to Play Console under App Bundle Explorer → Downloads → Deobfuscation file to resolve the warning
+Build command
+flutter build appbundle --obfuscate --split-debug-info=build/symbols
+Then upload mapping.txt alongside your AAB to Play Console.
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+deobfuscation file associated with this App Bundle. If you use obfuscated code (R8/proguard), uploading a deobfuscation file will make crashes and ANRs easier to analyse and debug. Using R8/proguard can help reduce app size
