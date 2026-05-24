@@ -15,10 +15,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 // UPDATE THESE URLs before publishing
 // ─────────────────────────────────────────────────────────────────────────────
 const String _kPlayStoreUrl =
-    'https://play.google.com/store/apps/details?id=com.redpdf.sign_pdf_redpdf';
+    'https://play.google.com/store/apps/details?id=com.legendarysoftware.redpdf.signpdf_scanpdf';
 const String _kDeveloperUrl =
-    'https://play.google.com/store/apps/developer?id=RedPDF';
-const String _kPrivacyPolicyUrl = 'https://redpdf.app/privacy-policy';
+    "https://play.google.com/store/search?q=pub%3ALegendary%20Software%20Solutions&c=apps";
+const String _kPrivacyPolicyUrl =
+    'https://anil-s-yadav.github.io/REDPDF_sign_pdf_privacy_policy/';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -299,7 +300,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   children: [
                     // ⭐ Rate Us — featured card
-                    _featuredTile(color, loc),
+                    GestureDetector(
+                      onTap: () => _launchUrl(_kPlayStoreUrl),
+                      // onTap: () => UpdateReviewService.instance.requestReview(),
+                      child: _featuredTile(color, loc),
+                    ),
 
                     // 📱 Other Apps
                     _tile(
@@ -443,55 +448,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () => UpdateReviewService.instance.requestReview(),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: const Icon(
-                    Icons.star_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(15),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        loc.translate('rate_us'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        loc.translate('feedback'),
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.arrow_forward_ios,
+                child: const Icon(
+                  Icons.star_rounded,
                   color: Colors.white,
-                  size: 16,
+                  size: 28,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      loc.translate('rate_us'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      loc.translate('feedback'),
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.white,
+                size: 16,
+              ),
+            ],
           ),
         ),
       ),
