@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/theme_provider.dart';
-import '../services/update_review_service.dart';
 import '../providers/language_provider.dart';
 import '../l10n/app_localizations.dart';
 import 'terms_screen.dart';
@@ -338,7 +337,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 20),
               Text(
                 "${loc.translate('version').toUpperCase()} 1.0.2 (2) • A Product by - REDPDF",

@@ -55,7 +55,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
   String? _pdfPath;
   double zoomLevel = 1.0;
   final PdfViewerController _pdfViewerController = PdfViewerController();
-  int _currentPageIndex = 0;
   String? _selectedSignatureId;
   Offset _scrollOffset = Offset.zero;
 
@@ -608,7 +607,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                       canShowScrollStatus: true,
                       onPageChanged: (details) {
                         setState(() {
-                          _currentPageIndex = details.newPageNumber - 1;
                           _selectedSignatureId = null;
                         });
                       },
@@ -631,12 +629,9 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                     ),
 
                   // ✍️ Draggable & Resizable Signature Boxes
-                  // Fix #1: Render using document-space coordinates compensated by scroll offset & zoom
-                  ..._addedSignatures
-                      .where(
-                        (instance) => instance.pageIndex == _currentPageIndex,
-                      )
-                      .map((instance) {
+                  // Render ALL signatures using absolute document-space coordinates.
+                  // No page filtering — off-page signatures naturally position off-screen.
+                  ..._addedSignatures.map((instance) {
                         final isSelected = instance.id == _selectedSignatureId;
                         // Convert document-space position to screen position
                         final screenX =
