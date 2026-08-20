@@ -187,7 +187,9 @@ class _EditSignatureScreenState extends State<EditSignatureScreen> {
       onTap: () => setState(() => selectedTool = index),
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? colors.primary.withOpacity(0.1) : colors.card,
+          color: isSelected
+              ? colors.primary.withValues(alpha: 0.1)
+              : colors.card,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? colors.primary : colors.border,
@@ -230,7 +232,7 @@ class _EditSignatureScreenState extends State<EditSignatureScreen> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: colors.primary.withOpacity(0.1),
+                  color: colors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(

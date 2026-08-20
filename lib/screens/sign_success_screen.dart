@@ -54,11 +54,11 @@ class SignSuccessScreen extends StatelessWidget {
                             width: 120,
                             height: 120,
                             decoration: BoxDecoration(
-                              color: colors.primary.withOpacity(0.1),
+                              color: colors.primary.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: colors.primary.withOpacity(0.2),
+                                  color: colors.primary.withValues(alpha: 0.2),
                                   blurRadius: 20 * value,
                                   spreadRadius: 5 * value,
                                 ),
@@ -195,7 +195,7 @@ class SignSuccessScreen extends StatelessWidget {
                 color: colors.bg,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     offset: const Offset(0, -4),
                     blurRadius: 8,
                   ),

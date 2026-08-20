@@ -335,7 +335,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
           type: 'text',
           text: textValue,
           font: filteredFonts[fontIndex],
-          color: selectedColor.value,
+          color: selectedColor.toARGB32(),
         );
         await signatureProvider.addSignature(sig);
       }
@@ -461,7 +461,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: colors.primary.withOpacity(0.4),
+                              color: colors.primary.withValues(alpha: 0.4),
                             ),
                           ),
                           child: ClipRRect(
@@ -501,7 +501,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                               color: colors.card,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: colors.primary.withOpacity(0.4),
+                                color: colors.primary.withValues(alpha: 0.4),
                               ),
                             ),
                             child: _isProcessing
@@ -654,7 +654,9 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                                         padding: const EdgeInsets.all(16),
                                         decoration: BoxDecoration(
                                           color: isSelected
-                                              ? colors.primary.withOpacity(0.1)
+                                              ? colors.primary.withValues(
+                                                  alpha: 0.1,
+                                                )
                                               : Colors.white,
                                           borderRadius: BorderRadius.circular(
                                             15,
@@ -694,7 +696,10 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
         color: colors.card,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+          ),
         ],
       ),
       child: Column(
@@ -710,7 +715,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: colors.danger.withOpacity(0.1),
+                  color: colors.danger.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -833,7 +838,7 @@ class _CreateSignatureScreenState extends State<CreateSignatureScreen>
                   borderRadius: BorderRadius.circular(25),
                   boxShadow: [
                     BoxShadow(
-                      color: colors.primary.withOpacity(0.5),
+                      color: colors.primary.withValues(alpha: 0.5),
                       blurRadius: 10,
                       spreadRadius: 1,
                       offset: const Offset(0, 5),

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart' as pdfrx;
 
@@ -11,9 +10,7 @@ class PdfViewerScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('PDF Viewer')),
-      body: SafeArea(
-        child: pdfrx.PdfViewer.file(pdfPath),
-      ),
+      body: SafeArea(child: pdfrx.PdfViewer.file(pdfPath)),
     );
   }
 }

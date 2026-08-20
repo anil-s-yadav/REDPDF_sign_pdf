@@ -207,7 +207,7 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: colors.primary.withOpacity(0.1),
+                        color: colors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -354,7 +354,7 @@ class _ScanPdfScreenState extends State<ScanPdfScreen> {
       decoration: BoxDecoration(
         border: Border.all(color: colors.primary, style: BorderStyle.solid),
         borderRadius: BorderRadius.circular(16),
-        color: colors.primary.withOpacity(0.05),
+        color: colors.primary.withValues(alpha: 0.05),
       ),
       child: Center(
         child: Column(

@@ -49,11 +49,11 @@ class ScanSuccessScreen extends StatelessWidget {
                       width: 120,
                       height: 120,
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: Colors.green.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.green.withOpacity(0.2),
+                            color: Colors.green.withValues(alpha: 0.2),
                             blurRadius: 20 * value,
                             spreadRadius: 5 * value,
                           ),
@@ -127,7 +127,9 @@ class ScanSuccessScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                AppLocalizations.of(context)!.translate('tap_to_preview'),
+                                AppLocalizations.of(
+                                  context,
+                                )!.translate('tap_to_preview'),
                                 style: TextStyle(
                                   color: colors.primary,
                                   fontSize: 13,
@@ -156,7 +158,9 @@ class ScanSuccessScreen extends StatelessWidget {
                         }
                       },
                       icon: const Icon(Icons.share),
-                      label: Text(AppLocalizations.of(context)!.translate('share')),
+                      label: Text(
+                        AppLocalizations.of(context)!.translate('share'),
+                      ),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         backgroundColor: colors.card,
@@ -182,7 +186,9 @@ class ScanSuccessScreen extends StatelessWidget {
                         }
                       },
                       icon: const Icon(Icons.edit_document),
-                      label: Text(AppLocalizations.of(context)!.translate('sign_now')),
+                      label: Text(
+                        AppLocalizations.of(context)!.translate('sign_now'),
+                      ),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         backgroundColor: colors.primary,

@@ -200,7 +200,10 @@ class _FilesScreenState extends State<FilesScreen> {
         color: pdfColor.card,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
-          BoxShadow(color: pdfColor.primary.withOpacity(0.05), blurRadius: 8),
+          BoxShadow(
+            color: pdfColor.primary.withValues(alpha: 0.05),
+            blurRadius: 8,
+          ),
         ],
       ),
       child: Row(
@@ -361,7 +364,7 @@ class _FilesScreenState extends State<FilesScreen> {
       height: 50,
       width: 50,
       decoration: BoxDecoration(
-        color: pdfColor.primary.withOpacity(0.2),
+        color: pdfColor.primary.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(Icons.picture_as_pdf, color: pdfColor.primary),
