@@ -28,24 +28,25 @@ class SignPdfScreen extends StatefulWidget {
 class SignatureInstance {
   final String id;
   final SignatureModel signature;
-  // Position in document-space coordinates (at zoom=1, relative to document origin)
-  Offset docPosition;
-  double scale;
   int pageIndex;
-  // The scroll offset when the signature was placed — used to compute page-relative position for PDF save
-  Offset placementScrollOffset;
-  double placementZoom;
+  // Normalized coordinates (0.0 - 1.0) relative to the specific PDF page
+  double normX;
+  double normY;
+  double normWidth;
+  double normHeight;
+  double aspectRatio;
   // For text signatures: path to a cached PNG rendered at placement time (preserves Google Font exactly)
   String? cachedTextImagePath;
 
   SignatureInstance({
     required this.id,
     required this.signature,
-    required this.docPosition,
     required this.pageIndex,
-    required this.placementScrollOffset,
-    required this.placementZoom,
-    this.scale = 1.0,
+    required this.normX,
+    required this.normY,
+    required this.normWidth,
+    required this.normHeight,
+    required this.aspectRatio,
     this.cachedTextImagePath,
   });
 }
@@ -53,33 +54,20 @@ class SignatureInstance {
 class _SignPdfScreenState extends State<SignPdfScreen> {
   final List<SignatureInstance> _addedSignatures = [];
   String? _pdfPath;
-  double zoomLevel = 1.0;
+  Uint8List? _pdfBytes;
+  PdfDocument? _pdfDocument;
+  int _pageCount = 1;
+  int _currentPageIndex = 0;
   final PdfViewerController _pdfViewerController = PdfViewerController();
   String? _selectedSignatureId;
-  Offset _scrollOffset = Offset.zero;
-
-  @override
-  void initState() {
-    super.initState();
-    _pdfViewerController.addListener(_onViewerChanged);
-  }
+  bool _isPageTransitioning = false;
+  Rect? _lastRenderedPageRect;
 
   @override
   void dispose() {
-    _pdfViewerController.removeListener(_onViewerChanged);
+    _pdfDocument?.dispose();
     _pdfViewerController.dispose();
     super.dispose();
-  }
-
-  void _onViewerChanged() {
-    final newOffset = _pdfViewerController.scrollOffset;
-    final newZoom = _pdfViewerController.zoomLevel;
-    if (newOffset != _scrollOffset || newZoom != zoomLevel) {
-      setState(() {
-        _scrollOffset = newOffset;
-        zoomLevel = newZoom;
-      });
-    }
   }
 
   @override
@@ -89,8 +77,24 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
       final args = ModalRoute.of(context)!.settings.arguments;
       if (args is String) {
         _pdfPath = args;
+        _loadPdfDocument();
       }
     }
+  }
+
+  Future<void> _loadPdfDocument() async {
+    if (_pdfPath == null) return;
+    try {
+      final bytes = await File(_pdfPath!).readAsBytes();
+      final doc = PdfDocument(inputBytes: bytes);
+      if (mounted) {
+        setState(() {
+          _pdfBytes = bytes;
+          _pdfDocument = doc;
+          _pageCount = doc.pages.count;
+        });
+      }
+    } catch (_) {}
   }
 
   void _showSignaturePicker() {
@@ -158,7 +162,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                             },
                             child: Container(
                               decoration: BoxDecoration(
-                                // Fix #4: Always white bg so dark signatures are visible
                                 color: Colors.white,
                                 border: Border.all(color: Colors.grey.shade300),
                                 borderRadius: BorderRadius.circular(10),
@@ -178,23 +181,32 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
 
   Future<void> _addSignature(SignatureModel sig) async {
     final newId = DateTime.now().millisecondsSinceEpoch.toString();
-    // Store position in document-space coordinates (zoom=1 reference)
-    final docPos = Offset(
-      (100 + _scrollOffset.dx) / zoomLevel,
-      (200 + _scrollOffset.dy) / zoomLevel,
-    );
+    final pageRect =
+        _lastRenderedPageRect ?? const Rect.fromLTWH(0, 0, 300, 400);
+
+    const double defaultW = 140.0;
+    const double defaultH = 75.0;
+    const double aspect = defaultW / defaultH;
+
+    final double initW = defaultW.clamp(40.0, pageRect.width * 0.7);
+    final double initH = initW / aspect;
+
+    final double normW = (initW / pageRect.width).clamp(0.05, 0.9);
+    final double normH = (initH / pageRect.height).clamp(0.05, 0.9);
+    final double normX = (0.5 - normW / 2).clamp(0.0, 1.0 - normW);
+    final double normY = (0.5 - normH / 2).clamp(0.0, 1.0 - normH);
 
     final instance = SignatureInstance(
       id: newId,
       signature: sig,
-      docPosition: docPos,
-      pageIndex: _pdfViewerController.pageNumber - 1,
-      placementScrollOffset: _scrollOffset,
-      placementZoom: zoomLevel,
+      pageIndex: _currentPageIndex,
+      normX: normX,
+      normY: normY,
+      normWidth: normW,
+      normHeight: normH,
+      aspectRatio: aspect,
     );
 
-    // For text signatures, render to PNG NOW while the Google Font is guaranteed
-    // to already be registered in Flutter's font engine (the preview just showed it).
     if (sig.type == 'text' && sig.text != null) {
       final Color color = sig.color != null ? Color(sig.color!) : Colors.black;
       final Uint8List? bytes = await _renderTextToImageBytes(
@@ -221,11 +233,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
     }
   }
 
-  /// Builds signature preview widget.
-  /// [scale] controls text font scaling for the on-PDF overlay.
-  /// [forPdfOverlay] when true, forces black text for visibility on white PDF pages.
-  /// Renders a text signature with the correct Google Font to a PNG byte array.
-  /// This is used during PDF generation so fonts are preserved exactly as shown on screen.
   Future<Uint8List?> _renderTextToImageBytes(
     String text,
     String? fontName,
@@ -237,7 +244,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width, height));
 
-    // Transparent background
     canvas.drawRect(
       Rect.fromLTWH(0, 0, width, height),
       Paint()..color = Colors.transparent,
@@ -268,7 +274,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
     );
     textPainter.layout(maxWidth: width);
 
-    // Center the text in the canvas
     final xOffset = (width - textPainter.width) / 2;
     final yOffset = (height - textPainter.height) / 2;
     textPainter.paint(canvas, Offset(xOffset, yOffset));
@@ -281,36 +286,35 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
 
   Widget _buildSignaturePreview(
     SignatureModel sig, {
-    double scale = 1.0,
     bool forPdfOverlay = false,
   }) {
     if ((sig.type == 'draw' || sig.type == 'image') && sig.path != null) {
       final file = File(sig.path!);
       if (file.existsSync()) {
         return Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(4.0),
           child: Image.file(file, fit: BoxFit.contain),
         );
       }
     } else if (sig.type == 'text' && sig.text != null) {
-      // Fix #2: Scale font size with the instance scale
-      final double fontSize = 24 * scale;
-      // Fix #3: Force black color for text on PDF overlay (PDF pages are white)
       final Color textColor = forPdfOverlay
           ? Colors.black
           : (sig.color != null ? Color(sig.color!) : Colors.black);
 
       return Center(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            sig.text!,
-            style: sig.font != null
-                ? GoogleFonts.getFont(
-                    sig.font!,
-                    textStyle: TextStyle(fontSize: fontSize, color: textColor),
-                  )
-                : TextStyle(fontSize: fontSize, color: textColor),
+        child: Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: FittedBox(
+            fit: BoxFit.contain,
+            child: Text(
+              sig.text!,
+              style: sig.font != null
+                  ? GoogleFonts.getFont(
+                      sig.font!,
+                      textStyle: TextStyle(fontSize: 40, color: textColor),
+                    )
+                  : TextStyle(fontSize: 40, color: textColor),
+            ),
           ),
         ),
       );
@@ -319,7 +323,7 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
   }
 
   void _addTextPrompt() {
-    TextEditingController textController = TextEditingController();
+    final textController = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) {
@@ -366,7 +370,7 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
   }
 
   void _addInitialsPrompt() {
-    TextEditingController textController = TextEditingController();
+    final textController = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) {
@@ -411,8 +415,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
 
     try {
       final File original = File(_pdfPath!);
-
-      // Real PDF modification
       final PdfDocument document = PdfDocument(
         inputBytes: await original.readAsBytes(),
       );
@@ -421,77 +423,57 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
         if (instance.pageIndex >= 0 &&
             instance.pageIndex < document.pages.count) {
           final PdfPage page = document.pages[instance.pageIndex];
-          final sig = instance.signature;
-
-          // SfPdfViewer fits the page to the screen width, but applies an 8px margin
-          // on the left, right, top, and bottom, plus an 8px gap between pages.
-          final double screenWidth = MediaQuery.of(context).size.width;
-          final double pageViewWidth =
-              screenWidth - 16.0; // 8px left and 8px right
           final double pw = page.size.width;
-          final double pdfScale = pw / pageViewWidth;
+          final double ph = page.size.height;
 
-          // Calculate the Y offset of the top of this specific page in the continuous scroll view
-          double pageTopDocY = 8.0; // 8px top margin for the document
-          for (int i = 0; i < instance.pageIndex; i++) {
-            final PdfPage p = document.pages[i];
-            double hPixels = pageViewWidth * (p.size.height / p.size.width);
-            pageTopDocY += hPixels + 8.0; // 8px spacing between pages
-          }
+          // Exact page-relative coordinates in PDF points
+          final double x = instance.normX * pw;
+          final double y = instance.normY * ph;
+          final double width = instance.normWidth * pw;
+          final double height = instance.normHeight * ph;
 
-          // docPosition is the exact absolute coordinate in the continuous scroll view at zoom=1.
-          // Subtract the top margin offset and left margin offset to get local page pixels.
-          final double localDocX = instance.docPosition.dx - 8.0;
-          final double localDocY = instance.docPosition.dy - pageTopDocY;
-
-          // Convert logical pixels back to PDF points.
-          // Add 4.0 to account for the EdgeInsets.all(4) padding inside the UI Container
-          // so the drawn elements perfectly match the visual position of the inner SizedBox.
-          final double paddingOffset = 4.0;
-          double x = (localDocX + paddingOffset) * pdfScale;
-          double y = (localDocY + paddingOffset) * pdfScale;
+          final sig = instance.signature;
 
           if ((sig.type == 'draw' || sig.type == 'image') && sig.path != null) {
             final File imgFile = File(sig.path!);
             if (await imgFile.exists()) {
               final PdfBitmap image = PdfBitmap(await imgFile.readAsBytes());
 
-              // Simulate BoxFit.contain and Center alignment from the UI
-              final double imgWidth = image.width.toDouble();
-              final double imgHeight = image.height.toDouble();
-              final double boxWidth = 150 * instance.scale * pdfScale;
-              final double boxHeight = 80 * instance.scale * pdfScale;
+              // Calculate contain bounds for drawing on PDF
+              final double imgW = image.width.toDouble();
+              final double imgH = image.height.toDouble();
+              final double imgRatio = imgW / imgH;
+              final double boxRatio = width / height;
 
-              double fittedWidth = boxWidth;
-              double fittedHeight = imgHeight * (boxWidth / imgWidth);
+              double drawW = width;
+              double drawH = height;
+              double drawX = x;
+              double drawY = y;
 
-              if (fittedHeight > boxHeight) {
-                fittedHeight = boxHeight;
-                fittedWidth = imgWidth * (boxHeight / imgHeight);
+              if (imgRatio > boxRatio) {
+                drawW = width;
+                drawH = width / imgRatio;
+                drawY = y + (height - drawH) / 2;
+              } else {
+                drawH = height;
+                drawW = height * imgRatio;
+                drawX = x + (width - drawW) / 2;
               }
-
-              final double dx = x + (boxWidth - fittedWidth) / 2;
-              final double dy = y + (boxHeight - fittedHeight) / 2;
 
               page.graphics.drawImage(
                 image,
-                Rect.fromLTWH(dx, dy, fittedWidth, fittedHeight),
+                Rect.fromLTWH(drawX, drawY, drawW, drawH),
               );
             }
           } else if (sig.type == 'text' && sig.text != null) {
-            final double boxWidth = 150 * instance.scale * pdfScale;
-            final double boxHeight = 80 * instance.scale * pdfScale;
-
             Uint8List? imgBytes;
 
-            // Prefer the cached PNG rendered at placement time (exact Google Font)
             if (instance.cachedTextImagePath != null &&
                 File(instance.cachedTextImagePath!).existsSync()) {
               imgBytes = await File(
                 instance.cachedTextImagePath!,
               ).readAsBytes();
             } else {
-              // Fallback: re-render (font should be loaded since user already saw it)
               final Color textColor = sig.color != null
                   ? Color(sig.color!)
                   : Colors.black;
@@ -509,7 +491,7 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
               final PdfBitmap image = PdfBitmap(imgBytes);
               page.graphics.drawImage(
                 image,
-                Rect.fromLTWH(x, y, boxWidth, boxHeight),
+                Rect.fromLTWH(x, y, width, height),
               );
             }
           }
@@ -521,38 +503,35 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
 
       final fileName = 'signed_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
-      // Check if user has a custom save location
       final prefs = await SharedPreferences.getInstance();
       final customPath = prefs.getString('save_location');
 
       String newPath;
       if (customPath != null) {
-        // User selected custom path — write directly
         final dir = Directory(customPath);
         if (!await dir.exists()) await dir.create(recursive: true);
         newPath = '$customPath/$fileName';
         await File(newPath).writeAsBytes(bytes, flush: true);
       } else {
-        // Default: save to Downloads/RedPdf_sign via MediaStore (no permissions needed)
         newPath = await DownloadHelper.savePdfToDownloads(
           bytes: Uint8List.fromList(bytes),
           fileName: fileName,
         );
       }
 
-      // Refresh android indexing
       try {
         await MediaScanner.loadMedia(path: newPath);
-      } catch (e) {
-        // scanner error ignored
-      }
+      } catch (_) {}
 
+      if (!mounted) return;
       final pdfProvider = Provider.of<PdfProvider>(context, listen: false);
       final doc = PdfDocumentModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: "Signed_${original.uri.pathSegments.last}",
         path: newPath,
-        sizeInBytes: File(newPath).existsSync() ? await File(newPath).length() : bytes.length,
+        sizeInBytes: File(newPath).existsSync()
+            ? await File(newPath).length()
+            : bytes.length,
       );
 
       await pdfProvider.addSignedDocument(doc);
@@ -584,190 +563,396 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
 
     return Scaffold(
       backgroundColor: colors.bg,
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(fileName, style: TextStyle(color: colors.text, fontSize: 16)),
-          ],
-        ),
-      ),
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(
-              child: Stack(
+            // 🔹 Modern Top Bar
+            Container(
+              margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                color: colors.card,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
                 children: [
-                  // 📄 PDF Viewer
-                  if (_pdfPath != null)
-                    SfPdfViewer.file(
-                      File(_pdfPath!),
-                      controller: _pdfViewerController,
-                      canShowScrollHead: true,
-                      canShowScrollStatus: true,
-                      onPageChanged: (details) {
-                        setState(() {
-                          _selectedSignatureId = null;
-                        });
-                      },
-                      onZoomLevelChanged: (details) {
-                        setState(() {
-                          zoomLevel = details.newZoomLevel;
-                        });
-                      },
-                      onTap: (details) {
-                        setState(() {
-                          _selectedSignatureId = null;
-                        });
+                  // Back button
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => Navigator.pop(context),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 18,
+                          color: colors.text,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  // File name
+                  Expanded(
+                    child: Text(
+                      fileName,
+                      style: TextStyle(
+                        color: colors.text,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Page Switcher Pill
+                  if (_pageCount > 1)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: _currentPageIndex > 0
+                                  ? () => _pdfViewerController.previousPage()
+                                  : null,
+                              child: Padding(
+                                padding: const EdgeInsets.all(6),
+                                child: Icon(
+                                  Icons.chevron_left_rounded,
+                                  size: 20,
+                                  color: _currentPageIndex > 0
+                                      ? colors.primary
+                                      : colors.text.withValues(alpha: 0.3),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Text(
+                              '${_currentPageIndex + 1} / $_pageCount',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: colors.primary,
+                              ),
+                            ),
+                          ),
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: _currentPageIndex < _pageCount - 1
+                                  ? () => _pdfViewerController.nextPage()
+                                  : null,
+                              child: Padding(
+                                padding: const EdgeInsets.all(6),
+                                child: Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 20,
+                                  color: _currentPageIndex < _pageCount - 1
+                                      ? colors.primary
+                                      : colors.text.withValues(alpha: 0.3),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // 📄 PDF Viewer Area (Full Viewport)
+            Expanded(
+              child: _pdfBytes != null
+                  ? LayoutBuilder(
+                      builder: (context, constraints) {
+                        final double viewerWidth = constraints.maxWidth;
+                        final double viewerHeight = constraints.maxHeight;
+
+                        double renderedWidth = viewerWidth;
+                        double renderedHeight = viewerHeight;
+                        double pageLeft = 0;
+                        double pageTop = 0;
+
+                        if (_pdfDocument != null &&
+                            _currentPageIndex < _pdfDocument!.pages.count) {
+                          final pageSize =
+                              _pdfDocument!.pages[_currentPageIndex].size;
+                          final double pdfPageWidth = pageSize.width;
+                          final double pdfPageHeight = pageSize.height;
+                          final double pageRatio = pdfPageWidth / pdfPageHeight;
+                          final double viewerRatio = viewerWidth / viewerHeight;
+
+                          if (pageRatio > viewerRatio) {
+                            renderedWidth = viewerWidth;
+                            renderedHeight = viewerWidth / pageRatio;
+                            pageLeft = 0;
+                            pageTop = (viewerHeight - renderedHeight) / 2;
+                          } else {
+                            renderedHeight = viewerHeight;
+                            renderedWidth = viewerHeight * pageRatio;
+                            pageLeft = (viewerWidth - renderedWidth) / 2;
+                            pageTop = 0;
+                          }
+                        }
+
+                        _lastRenderedPageRect = Rect.fromLTWH(
+                          pageLeft,
+                          pageTop,
+                          renderedWidth,
+                          renderedHeight,
+                        );
+
+                        return NotificationListener<ScrollNotification>(
+                          onNotification: (notification) {
+                            if (notification is ScrollStartNotification) {
+                              if (!_isPageTransitioning) {
+                                setState(() => _isPageTransitioning = true);
+                              }
+                            } else if (notification is ScrollEndNotification) {
+                              if (_isPageTransitioning) {
+                                setState(() => _isPageTransitioning = false);
+                              }
+                            }
+                            return false;
+                          },
+                          child: Stack(
+                            children: [
+                              // 📄 Single-page PDF Viewer
+                              SfPdfViewer.memory(
+                                _pdfBytes!,
+                                controller: _pdfViewerController,
+                                pageLayoutMode: PdfPageLayoutMode.single,
+                                canShowScrollHead: false,
+                                canShowScrollStatus: false,
+                                canShowPaginationDialog: false,
+                                canShowPageLoadingIndicator: false,
+                                enableDoubleTapZooming: false,
+                                onPageChanged: (details) {
+                                  setState(() {
+                                    _currentPageIndex = details.newPageNumber - 1;
+                                    _selectedSignatureId = null;
+                                    _isPageTransitioning = false;
+                                  });
+                                },
+                                onDocumentLoaded: (details) {
+                                  setState(() {
+                                    _pdfDocument = details.document;
+                                    _pageCount = details.document.pages.count;
+                                  });
+                                },
+                                onTap: (details) {
+                                  setState(() {
+                                    _selectedSignatureId = null;
+                                  });
+                                },
+                              ),
+
+                              // ✍️ Signatures (hidden during page swipe)
+                              if (!_isPageTransitioning)
+                                ..._addedSignatures
+                                    .where(
+                                      (inst) => inst.pageIndex == _currentPageIndex,
+                                    )
+                                    .map((instance) {
+                                  final isSelected =
+                                      instance.id == _selectedSignatureId;
+                                  final double left =
+                                      pageLeft + instance.normX * renderedWidth;
+                                  final double top =
+                                      pageTop + instance.normY * renderedHeight;
+                                  final double width =
+                                      instance.normWidth * renderedWidth;
+                                  final double height =
+                                      instance.normHeight * renderedHeight;
+
+                                  return Positioned(
+                                    left: left,
+                                    top: top,
+                                    width: width,
+                                    height: height,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedSignatureId = instance.id;
+                                        });
+                                      },
+                                      onPanUpdate: (details) {
+                                        setState(() {
+                                          _selectedSignatureId = instance.id;
+                                          instance.normX +=
+                                              details.delta.dx / renderedWidth;
+                                          instance.normY +=
+                                              details.delta.dy / renderedHeight;
+                                          instance.normX = instance.normX.clamp(
+                                            0.0,
+                                            1.0 - instance.normWidth,
+                                          );
+                                          instance.normY = instance.normY.clamp(
+                                            0.0,
+                                            1.0 - instance.normHeight,
+                                          );
+                                        });
+                                      },
+                                      child: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          Container(
+                                            width: width,
+                                            height: height,
+                                            padding: const EdgeInsets.all(2),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                color: isSelected
+                                                    ? Colors.blue
+                                                    : Colors.transparent,
+                                                width: 2,
+                                                style: BorderStyle.solid,
+                                              ),
+                                            ),
+                                            child: _buildSignaturePreview(
+                                              instance.signature,
+                                              forPdfOverlay: true,
+                                            ),
+                                          ),
+                                          // ❌ Close Button
+                                          if (isSelected)
+                                            Positioned(
+                                              right: -14,
+                                              top: -14,
+                                              child: GestureDetector(
+                                                behavior:
+                                                    HitTestBehavior.opaque,
+                                                onTap: () {
+                                                  setState(() {
+                                                    _addedSignatures.remove(
+                                                      instance,
+                                                    );
+                                                    _selectedSignatureId = null;
+                                                  });
+                                                },
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    4,
+                                                  ),
+                                                  child: const CircleAvatar(
+                                                    radius: 12,
+                                                    backgroundColor: Colors.red,
+                                                    child: Icon(
+                                                      Icons.close,
+                                                      size: 14,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          // 🔄 Resize Handle
+                                          if (isSelected)
+                                            Positioned(
+                                              right: -14,
+                                              bottom: -14,
+                                              child: GestureDetector(
+                                                behavior:
+                                                    HitTestBehavior.opaque,
+                                                onPanUpdate: (details) {
+                                                  setState(() {
+                                                    _selectedSignatureId =
+                                                        instance.id;
+                                                    double newW =
+                                                        (instance.normWidth *
+                                                            renderedWidth +
+                                                        details.delta.dx);
+                                                    newW = newW.clamp(
+                                                      40.0,
+                                                      renderedWidth *
+                                                          (1.0 -
+                                                              instance.normX),
+                                                    );
+                                                    double newH =
+                                                        newW /
+                                                        instance.aspectRatio;
+                                                    if (newH >
+                                                        renderedHeight *
+                                                            (1.0 -
+                                                                instance
+                                                                    .normY)) {
+                                                      newH =
+                                                          renderedHeight *
+                                                          (1.0 -
+                                                              instance.normY);
+                                                      newW =
+                                                          newH *
+                                                          instance.aspectRatio;
+                                                    }
+                                                    instance.normWidth =
+                                                        newW / renderedWidth;
+                                                    instance.normHeight =
+                                                        newH / renderedHeight;
+                                                  });
+                                                },
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    4,
+                                                  ),
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.all(4),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.blue,
+                                                      shape: BoxShape.circle,
+                                                      border: Border.all(
+                                                        color: Colors.white,
+                                                        width: 2,
+                                                      ),
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.zoom_out_map,
+                                                      size: 14,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }),
+                            ],
+                          ),
+                        );
                       },
                     )
-                  else
-                    Center(
+                  : Center(
                       child: Text(
                         AppLocalizations.of(context)!.translate('select_pdf'),
                       ),
                     ),
-
-                  // ✍️ Draggable & Resizable Signature Boxes
-                  // Render ALL signatures using absolute document-space coordinates.
-                  // No page filtering — off-page signatures naturally position off-screen.
-                  ..._addedSignatures.map((instance) {
-                        final isSelected = instance.id == _selectedSignatureId;
-                        // Convert document-space position to screen position
-                        final screenX =
-                            instance.docPosition.dx * zoomLevel -
-                            _scrollOffset.dx;
-                        final screenY =
-                            instance.docPosition.dy * zoomLevel -
-                            _scrollOffset.dy;
-                        return Positioned(
-                          left: screenX,
-                          top: screenY,
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedSignatureId = instance.id;
-                              });
-                            },
-                            onPanUpdate: (details) {
-                              setState(() {
-                                _selectedSignatureId = instance.id;
-                                // Convert screen delta to document-space delta
-                                instance.docPosition += Offset(
-                                  details.delta.dx / zoomLevel,
-                                  details.delta.dy / zoomLevel,
-                                );
-                                // Update placement reference for accurate save
-                                instance.placementScrollOffset = _scrollOffset;
-                                instance.placementZoom = zoomLevel;
-                              });
-                            },
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? Colors.blue
-                                          : Colors.transparent,
-                                      width: 2,
-                                      style: BorderStyle.solid,
-                                    ),
-                                  ),
-                                  child: SizedBox(
-                                    width: 150 * instance.scale,
-                                    height: 80 * instance.scale,
-                                    // Fix #2 & #3: pass scale and forPdfOverlay flag
-                                    child: _buildSignaturePreview(
-                                      instance.signature,
-                                      scale: instance.scale,
-                                      forPdfOverlay: true,
-                                    ),
-                                  ),
-                                ),
-                                // ❌ Close Button
-                                if (isSelected)
-                                  Positioned(
-                                    right: -20,
-                                    top: -20,
-                                    child: GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      onTap: () {
-                                        setState(() {
-                                          _addedSignatures.remove(instance);
-                                          _selectedSignatureId = null;
-                                        });
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(10),
-                                        child: const CircleAvatar(
-                                          radius: 12,
-                                          backgroundColor: Colors.red,
-                                          child: Icon(
-                                            Icons.close,
-                                            size: 14,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                // 🔄 Resize Handle
-                                if (isSelected)
-                                  Positioned(
-                                    right: -20,
-                                    bottom: -20,
-                                    child: GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      onPanUpdate: (details) {
-                                        setState(() {
-                                          _selectedSignatureId = instance.id;
-                                          // Use horizontal drag to resize
-                                          instance.scale +=
-                                              details.delta.dx / 100;
-                                          if (instance.scale < 0.2) {
-                                            instance.scale = 0.2;
-                                          }
-                                          if (instance.scale > 5.0) {
-                                            instance.scale = 5.0;
-                                          }
-                                        });
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: const BoxDecoration(
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue,
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: Colors.white,
-                                              width: 2,
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.zoom_out_map,
-                                            size: 16,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
-                ],
-              ),
             ),
-            // 🔻 Bottom Section
+
+            // 🔻 Slim Compact Bottom Section
             _bottomPanel(colors),
           ],
         ),
@@ -775,140 +960,118 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
     );
   }
 
-  // 🔻 Bottom Panel
+  // 🔻 Slim Compact Bottom Panel
   Widget _bottomPanel(AppColors colors) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: colors.bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        color: colors.card,
+        border: Border(
+          top: BorderSide(
+            color: colors.border.withValues(alpha: 0.5),
+            width: 1,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, -1),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Tool Row
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: colors.card,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                GestureDetector(
-                  onTap: _showSignaturePicker,
-                  child: _toolItem(
-                    AppLocalizations.of(context)!.translate('sign'),
-                    Icons.edit,
-                    colors,
-                    selected: true,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: _addTextPrompt,
-                  child: _toolItem(
-                    AppLocalizations.of(context)!.translate('text_tool'),
-                    Icons.text_fields,
-                    colors,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: _addDate,
-                  child: _toolItem(
-                    AppLocalizations.of(context)!.translate('date_tool'),
-                    Icons.calendar_today,
-                    colors,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: _addInitialsPrompt,
-                  child: _toolItem(
-                    AppLocalizations.of(context)!.translate('initials_tool'),
-                    Icons.person,
-                    colors,
-                  ),
-                ),
-              ],
-            ),
+          // Tool Row (Compact)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _toolItem(
+                AppLocalizations.of(context)!.translate('sign'),
+                Icons.edit,
+                colors,
+                _showSignaturePicker,
+              ),
+              _toolItem(
+                AppLocalizations.of(context)!.translate('text_tool'),
+                Icons.text_fields,
+                colors,
+                _addTextPrompt,
+              ),
+              _toolItem(
+                AppLocalizations.of(context)!.translate('date_tool'),
+                Icons.calendar_today,
+                colors,
+                _addDate,
+              ),
+              _toolItem(
+                AppLocalizations.of(context)!.translate('initials_tool'),
+                Icons.person,
+                colors,
+                _addInitialsPrompt,
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          // Buttons Row
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-            decoration: BoxDecoration(
-              color: colors.card,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
+          const SizedBox(height: 6),
+          // Action Buttons Row (Slim)
+          Row(
+            children: [
+              Expanded(
+                flex: 1,
+                child: SizedBox(
+                  height: 38,
+                  child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      backgroundColor: colors.card,
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.zero,
                       foregroundColor: colors.text,
                       side: BorderSide(color: colors.border),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: Text(
                       AppLocalizations.of(context)!.translate('cancel'),
+                      style: const TextStyle(fontSize: 13),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: GestureDetector(
-                    onTap: _saveSignedPdf,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: colors.primary,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: colors.primary.withOpacity(0.5),
-                            blurRadius: 8,
-                            spreadRadius: 1,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: SizedBox(
+                  height: 38,
+                  child: ElevatedButton.icon(
+                    onPressed: _saveSignedPdf,
+                    icon: const Icon(
+                      Icons.check_circle,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                    label: Text(
+                      AppLocalizations.of(
+                        context,
+                      )!.translate('save_signed_pdf'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
                       ),
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.check_circle,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              AppLocalizations.of(
-                                context,
-                              )!.translate('save_signed_pdf'),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.primary,
+                      elevation: 2,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -918,22 +1081,30 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
   Widget _toolItem(
     String text,
     IconData icon,
-    AppColors colors, {
-    bool selected = false,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: selected ? colors.primary : colors.text),
-        const SizedBox(height: 4),
-        Text(
-          text,
-          style: TextStyle(
-            color: selected ? colors.primary : colors.text,
-            fontSize: 12,
-          ),
+    AppColors colors,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: colors.primary),
+            const SizedBox(height: 2),
+            Text(
+              text,
+              style: TextStyle(
+                color: colors.text,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

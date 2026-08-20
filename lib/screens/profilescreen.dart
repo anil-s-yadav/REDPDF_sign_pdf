@@ -255,7 +255,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(20),
-                          color: color.primary.withOpacity(0.1),
+                          color: color.primary.withValues(alpha: 0.1),
                         ),
                         child: Icon(Icons.dark_mode, color: color.primary),
                       ),
@@ -352,14 +352,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// 🔹 Card Wrapper
   Widget _card(Color color, {required Widget child}) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Material(
         color: color,
         borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: child,
+        ),
       ),
-      child: child,
     );
   }
 
@@ -374,6 +377,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onTap: onTap,
         leading: Container(
           height: 50,
@@ -381,7 +385,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            color: color.primary.withOpacity(0.1),
+            color: color.primary.withValues(alpha: 0.1),
           ),
           child: Icon(icon1, color: color.primary),
         ),
@@ -431,14 +435,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color.primary, color.primary.withOpacity(0.8)],
+          colors: [color.primary, color.primary.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: color.primary.withOpacity(0.3),
+            color: color.primary.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -453,7 +457,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: const Icon(
@@ -478,7 +482,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       loc.translate('feedback'),
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 13,
                       ),
                     ),
