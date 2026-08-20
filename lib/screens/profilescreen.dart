@@ -339,7 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 20),
               Text(
-                "${loc.translate('version').toUpperCase()} 1.0.2 (2) • A Product by - REDPDF",
+                "${loc.translate('version').toUpperCase()} 1.0.0 (3) • A Product by - REDPDF",
                 style: TextStyle(fontSize: 12, color: color.text),
               ),
               const SizedBox(height: 20),
@@ -358,10 +358,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: color,
         borderRadius: BorderRadius.circular(20),
         clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: child,
-        ),
+        child: Padding(padding: const EdgeInsets.all(8), child: child),
       ),
     );
   }

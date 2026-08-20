@@ -28,3 +28,11 @@
 -keepattributes SourceFile,LineNumberTable
 -keepattributes Signature
 -keepattributes Exceptions
+
+# Suppress missing class warnings for Play Core, Play Services, and Flutter deferred components
+-dontwarn com.google.android.gms.**
+-dontwarn com.google.android.play.**
+-dontwarn com.google.android.play.core.**
+-dontwarn io.flutter.embedding.engine.deferredcomponents.**
+-dontwarn io.flutter.embedding.android.FlutterPlayStoreSplitApplication
+

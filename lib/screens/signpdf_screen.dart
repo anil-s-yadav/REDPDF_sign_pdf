@@ -4,10 +4,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:pdfrx/pdfrx.dart' as pdfrx;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:media_scanner/media_scanner.dart';
+
 import 'package:intl/intl.dart';
 import 'package:sign_pdf_redpdf/theme/app_theme.dart';
 import 'package:sign_pdf_redpdf/providers/signature_provider.dart';
@@ -54,19 +54,16 @@ class SignatureInstance {
 class _SignPdfScreenState extends State<SignPdfScreen> {
   final List<SignatureInstance> _addedSignatures = [];
   String? _pdfPath;
-  Uint8List? _pdfBytes;
-  PdfDocument? _pdfDocument;
+  PdfDocument? _pdfDocument; // Syncfusion doc for saving only
   int _pageCount = 1;
   int _currentPageIndex = 0;
-  final PdfViewerController _pdfViewerController = PdfViewerController();
+  final pdfrx.PdfViewerController _viewerController =
+      pdfrx.PdfViewerController();
   String? _selectedSignatureId;
-  bool _isPageTransitioning = false;
-  Rect? _lastRenderedPageRect;
 
   @override
   void dispose() {
     _pdfDocument?.dispose();
-    _pdfViewerController.dispose();
     super.dispose();
   }
 
@@ -82,6 +79,7 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
     }
   }
 
+  // Load Syncfusion PdfDocument for save logic only
   Future<void> _loadPdfDocument() async {
     if (_pdfPath == null) return;
     try {
@@ -89,7 +87,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
       final doc = PdfDocument(inputBytes: bytes);
       if (mounted) {
         setState(() {
-          _pdfBytes = bytes;
           _pdfDocument = doc;
           _pageCount = doc.pages.count;
         });
@@ -181,18 +178,11 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
 
   Future<void> _addSignature(SignatureModel sig) async {
     final newId = DateTime.now().millisecondsSinceEpoch.toString();
-    final pageRect =
-        _lastRenderedPageRect ?? const Rect.fromLTWH(0, 0, 300, 400);
 
-    const double defaultW = 140.0;
-    const double defaultH = 75.0;
-    const double aspect = defaultW / defaultH;
-
-    final double initW = defaultW.clamp(40.0, pageRect.width * 0.7);
-    final double initH = initW / aspect;
-
-    final double normW = (initW / pageRect.width).clamp(0.05, 0.9);
-    final double normH = (initH / pageRect.height).clamp(0.05, 0.9);
+    // Normalized defaults: ~35% width centered on page
+    const double normW = 0.35;
+    const double normH = 0.18;
+    const double aspect = normW / normH;
     final double normX = (0.5 - normW / 2).clamp(0.0, 1.0 - normW);
     final double normY = (0.5 - normH / 2).clamp(0.0, 1.0 - normH);
 
@@ -502,36 +492,35 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
       document.dispose();
 
       final fileName = 'signed_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final Uint8List uint8Bytes = Uint8List.fromList(bytes);
 
+      // Save to cache for guaranteed preview/share access
+      final tempDir = await getTemporaryDirectory();
+      final cachePath = '${tempDir.path}/$fileName';
+      await File(cachePath).writeAsBytes(uint8Bytes, flush: true);
+
+      // Export to Downloads or custom location for the user
       final prefs = await SharedPreferences.getInstance();
       final customPath = prefs.getString('save_location');
 
-      String newPath;
       if (customPath != null) {
         final dir = Directory(customPath);
         if (!await dir.exists()) await dir.create(recursive: true);
-        newPath = '$customPath/$fileName';
-        await File(newPath).writeAsBytes(bytes, flush: true);
+        await File('$customPath/$fileName').writeAsBytes(uint8Bytes, flush: true);
       } else {
-        newPath = await DownloadHelper.savePdfToDownloads(
-          bytes: Uint8List.fromList(bytes),
+        await DownloadHelper.savePdfToDownloads(
+          bytes: uint8Bytes,
           fileName: fileName,
         );
       }
-
-      try {
-        await MediaScanner.loadMedia(path: newPath);
-      } catch (_) {}
 
       if (!mounted) return;
       final pdfProvider = Provider.of<PdfProvider>(context, listen: false);
       final doc = PdfDocumentModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: "Signed_${original.uri.pathSegments.last}",
-        path: newPath,
-        sizeInBytes: File(newPath).existsSync()
-            ? await File(newPath).length()
-            : bytes.length,
+        path: cachePath,
+        sizeInBytes: uint8Bytes.length,
       );
 
       await pdfProvider.addSignedDocument(doc);
@@ -540,7 +529,7 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
         Navigator.pushReplacementNamed(
           context,
           '/sign_success',
-          arguments: newPath,
+          arguments: cachePath,
         );
       }
     } catch (e) {
@@ -583,7 +572,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
               ),
               child: Row(
                 children: [
-                  // Back button
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -600,7 +588,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  // File name
                   Expanded(
                     child: Text(
                       fileName,
@@ -614,7 +601,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Page Switcher Pill
                   if (_pageCount > 1)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -630,7 +616,13 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
                               onTap: _currentPageIndex > 0
-                                  ? () => _pdfViewerController.previousPage()
+                                  ? () {
+                                      if (_viewerController.isReady) {
+                                        _viewerController.goToPage(
+                                          pageNumber: _currentPageIndex,
+                                        );
+                                      }
+                                    }
                                   : null,
                               child: Padding(
                                 padding: const EdgeInsets.all(6),
@@ -660,7 +652,13 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
                               onTap: _currentPageIndex < _pageCount - 1
-                                  ? () => _pdfViewerController.nextPage()
+                                  ? () {
+                                      if (_viewerController.isReady) {
+                                        _viewerController.goToPage(
+                                          pageNumber: _currentPageIndex + 2,
+                                        );
+                                      }
+                                    }
                                   : null,
                               child: Padding(
                                 padding: const EdgeInsets.all(6),
@@ -681,269 +679,21 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
               ),
             ),
 
-            // 📄 PDF Viewer Area (Full Viewport)
+            // 📄 PDF Viewer (pdfrx with per-page overlays)
             Expanded(
-              child: _pdfBytes != null
-                  ? LayoutBuilder(
-                      builder: (context, constraints) {
-                        final double viewerWidth = constraints.maxWidth;
-                        final double viewerHeight = constraints.maxHeight;
-
-                        double renderedWidth = viewerWidth;
-                        double renderedHeight = viewerHeight;
-                        double pageLeft = 0;
-                        double pageTop = 0;
-
-                        if (_pdfDocument != null &&
-                            _currentPageIndex < _pdfDocument!.pages.count) {
-                          final pageSize =
-                              _pdfDocument!.pages[_currentPageIndex].size;
-                          final double pdfPageWidth = pageSize.width;
-                          final double pdfPageHeight = pageSize.height;
-                          final double pageRatio = pdfPageWidth / pdfPageHeight;
-                          final double viewerRatio = viewerWidth / viewerHeight;
-
-                          if (pageRatio > viewerRatio) {
-                            renderedWidth = viewerWidth;
-                            renderedHeight = viewerWidth / pageRatio;
-                            pageLeft = 0;
-                            pageTop = (viewerHeight - renderedHeight) / 2;
-                          } else {
-                            renderedHeight = viewerHeight;
-                            renderedWidth = viewerHeight * pageRatio;
-                            pageLeft = (viewerWidth - renderedWidth) / 2;
-                            pageTop = 0;
-                          }
-                        }
-
-                        _lastRenderedPageRect = Rect.fromLTWH(
-                          pageLeft,
-                          pageTop,
-                          renderedWidth,
-                          renderedHeight,
-                        );
-
-                        return NotificationListener<ScrollNotification>(
-                          onNotification: (notification) {
-                            if (notification is ScrollStartNotification) {
-                              if (!_isPageTransitioning) {
-                                setState(() => _isPageTransitioning = true);
-                              }
-                            } else if (notification is ScrollEndNotification) {
-                              if (_isPageTransitioning) {
-                                setState(() => _isPageTransitioning = false);
-                              }
-                            }
-                            return false;
-                          },
-                          child: Stack(
-                            children: [
-                              // 📄 Single-page PDF Viewer
-                              SfPdfViewer.memory(
-                                _pdfBytes!,
-                                controller: _pdfViewerController,
-                                pageLayoutMode: PdfPageLayoutMode.single,
-                                canShowScrollHead: false,
-                                canShowScrollStatus: false,
-                                canShowPaginationDialog: false,
-                                canShowPageLoadingIndicator: false,
-                                enableDoubleTapZooming: false,
-                                onPageChanged: (details) {
-                                  setState(() {
-                                    _currentPageIndex = details.newPageNumber - 1;
-                                    _selectedSignatureId = null;
-                                    _isPageTransitioning = false;
-                                  });
-                                },
-                                onDocumentLoaded: (details) {
-                                  setState(() {
-                                    _pdfDocument = details.document;
-                                    _pageCount = details.document.pages.count;
-                                  });
-                                },
-                                onTap: (details) {
-                                  setState(() {
-                                    _selectedSignatureId = null;
-                                  });
-                                },
-                              ),
-
-                              // ✍️ Signatures (hidden during page swipe)
-                              if (!_isPageTransitioning)
-                                ..._addedSignatures
-                                    .where(
-                                      (inst) => inst.pageIndex == _currentPageIndex,
-                                    )
-                                    .map((instance) {
-                                  final isSelected =
-                                      instance.id == _selectedSignatureId;
-                                  final double left =
-                                      pageLeft + instance.normX * renderedWidth;
-                                  final double top =
-                                      pageTop + instance.normY * renderedHeight;
-                                  final double width =
-                                      instance.normWidth * renderedWidth;
-                                  final double height =
-                                      instance.normHeight * renderedHeight;
-
-                                  return Positioned(
-                                    left: left,
-                                    top: top,
-                                    width: width,
-                                    height: height,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _selectedSignatureId = instance.id;
-                                        });
-                                      },
-                                      onPanUpdate: (details) {
-                                        setState(() {
-                                          _selectedSignatureId = instance.id;
-                                          instance.normX +=
-                                              details.delta.dx / renderedWidth;
-                                          instance.normY +=
-                                              details.delta.dy / renderedHeight;
-                                          instance.normX = instance.normX.clamp(
-                                            0.0,
-                                            1.0 - instance.normWidth,
-                                          );
-                                          instance.normY = instance.normY.clamp(
-                                            0.0,
-                                            1.0 - instance.normHeight,
-                                          );
-                                        });
-                                      },
-                                      child: Stack(
-                                        clipBehavior: Clip.none,
-                                        children: [
-                                          Container(
-                                            width: width,
-                                            height: height,
-                                            padding: const EdgeInsets.all(2),
-                                            decoration: BoxDecoration(
-                                              border: Border.all(
-                                                color: isSelected
-                                                    ? Colors.blue
-                                                    : Colors.transparent,
-                                                width: 2,
-                                                style: BorderStyle.solid,
-                                              ),
-                                            ),
-                                            child: _buildSignaturePreview(
-                                              instance.signature,
-                                              forPdfOverlay: true,
-                                            ),
-                                          ),
-                                          // ❌ Close Button
-                                          if (isSelected)
-                                            Positioned(
-                                              right: -14,
-                                              top: -14,
-                                              child: GestureDetector(
-                                                behavior:
-                                                    HitTestBehavior.opaque,
-                                                onTap: () {
-                                                  setState(() {
-                                                    _addedSignatures.remove(
-                                                      instance,
-                                                    );
-                                                    _selectedSignatureId = null;
-                                                  });
-                                                },
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(
-                                                    4,
-                                                  ),
-                                                  child: const CircleAvatar(
-                                                    radius: 12,
-                                                    backgroundColor: Colors.red,
-                                                    child: Icon(
-                                                      Icons.close,
-                                                      size: 14,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          // 🔄 Resize Handle
-                                          if (isSelected)
-                                            Positioned(
-                                              right: -14,
-                                              bottom: -14,
-                                              child: GestureDetector(
-                                                behavior:
-                                                    HitTestBehavior.opaque,
-                                                onPanUpdate: (details) {
-                                                  setState(() {
-                                                    _selectedSignatureId =
-                                                        instance.id;
-                                                    double newW =
-                                                        (instance.normWidth *
-                                                            renderedWidth +
-                                                        details.delta.dx);
-                                                    newW = newW.clamp(
-                                                      40.0,
-                                                      renderedWidth *
-                                                          (1.0 -
-                                                              instance.normX),
-                                                    );
-                                                    double newH =
-                                                        newW /
-                                                        instance.aspectRatio;
-                                                    if (newH >
-                                                        renderedHeight *
-                                                            (1.0 -
-                                                                instance
-                                                                    .normY)) {
-                                                      newH =
-                                                          renderedHeight *
-                                                          (1.0 -
-                                                              instance.normY);
-                                                      newW =
-                                                          newH *
-                                                          instance.aspectRatio;
-                                                    }
-                                                    instance.normWidth =
-                                                        newW / renderedWidth;
-                                                    instance.normHeight =
-                                                        newH / renderedHeight;
-                                                  });
-                                                },
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(
-                                                    4,
-                                                  ),
-                                                  child: Container(
-                                                    padding:
-                                                        const EdgeInsets.all(4),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.blue,
-                                                      shape: BoxShape.circle,
-                                                      border: Border.all(
-                                                        color: Colors.white,
-                                                        width: 2,
-                                                      ),
-                                                    ),
-                                                    child: const Icon(
-                                                      Icons.zoom_out_map,
-                                                      size: 14,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }),
-                            ],
-                          ),
-                        );
-                      },
+              child: _pdfPath != null
+                  ? pdfrx.PdfViewer.file(
+                      _pdfPath!,
+                      controller: _viewerController,
+                      params: pdfrx.PdfViewerParams(
+                        pageOverlaysBuilder: _buildPageOverlays,
+                        onPageChanged: (pageNumber) {
+                          setState(() {
+                            _currentPageIndex = (pageNumber ?? 1) - 1;
+                            _selectedSignatureId = null;
+                          });
+                        },
+                      ),
                     )
                   : Center(
                       child: Text(
@@ -952,7 +702,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
                     ),
             ),
 
-            // 🔻 Slim Compact Bottom Section
             _bottomPanel(colors),
           ],
         ),
@@ -960,7 +709,138 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
     );
   }
 
-  // 🔻 Slim Compact Bottom Panel
+  // Build per-page signature overlays
+  List<Widget> _buildPageOverlays(
+    BuildContext context,
+    Rect pageRect,
+    pdfrx.PdfPage page,
+  ) {
+    final pageIndex = page.pageNumber - 1;
+    final signaturesOnPage = _addedSignatures.where(
+      (inst) => inst.pageIndex == pageIndex,
+    );
+
+    return signaturesOnPage.map((instance) {
+      final isSelected = instance.id == _selectedSignatureId;
+      final double left = instance.normX * pageRect.width;
+      final double top = instance.normY * pageRect.height;
+      final double width = instance.normWidth * pageRect.width;
+      final double height = instance.normHeight * pageRect.height;
+
+      return Positioned(
+        left: left,
+        top: top,
+        width: width,
+        height: height,
+        child: GestureDetector(
+          onTap: () {
+            setState(() => _selectedSignatureId = instance.id);
+          },
+          onPanUpdate: (details) {
+            setState(() {
+              _selectedSignatureId = instance.id;
+              instance.normX += details.delta.dx / pageRect.width;
+              instance.normY += details.delta.dy / pageRect.height;
+              instance.normX = instance.normX.clamp(
+                0.0,
+                1.0 - instance.normWidth,
+              );
+              instance.normY = instance.normY.clamp(
+                0.0,
+                1.0 - instance.normHeight,
+              );
+            });
+          },
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: width,
+                height: height,
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: isSelected ? Colors.blue : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+                child: _buildSignaturePreview(
+                  instance.signature,
+                  forPdfOverlay: true,
+                ),
+              ),
+              if (isSelected)
+                Positioned(
+                  right: -14,
+                  top: -14,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      setState(() {
+                        _addedSignatures.remove(instance);
+                        _selectedSignatureId = null;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      child: const CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Colors.red,
+                        child: Icon(Icons.close, size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              if (isSelected)
+                Positioned(
+                  right: -14,
+                  bottom: -14,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onPanUpdate: (details) {
+                      setState(() {
+                        _selectedSignatureId = instance.id;
+                        double newW =
+                            instance.normWidth * pageRect.width +
+                            details.delta.dx;
+                        newW = newW.clamp(
+                          40.0,
+                          pageRect.width * (1.0 - instance.normX),
+                        );
+                        double newH = newW / instance.aspectRatio;
+                        if (newH > pageRect.height * (1.0 - instance.normY)) {
+                          newH = pageRect.height * (1.0 - instance.normY);
+                          newW = newH * instance.aspectRatio;
+                        }
+                        instance.normWidth = newW / pageRect.width;
+                        instance.normHeight = newH / pageRect.height;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.zoom_out_map,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }).toList();
+  }
+
   Widget _bottomPanel(AppColors colors) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -983,7 +863,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Tool Row (Compact)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -1014,7 +893,6 @@ class _SignPdfScreenState extends State<SignPdfScreen> {
             ],
           ),
           const SizedBox(height: 6),
-          // Action Buttons Row (Slim)
           Row(
             children: [
               Expanded(
